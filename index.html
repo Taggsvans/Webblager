@@ -2,8 +2,7 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<title>Lagersaldo</title>
-
+<title>Lagersaldo Firebase</title>
 <style>
 :root {
   --bg: #f4f6f8;
@@ -115,7 +114,17 @@ form.hidden { display: none; }
 </head>
 
 <body>
-<div class="container">
+
+<!-- LOGIN -->
+<div class="container" id="login-container">
+  <h1>🔒 Logga in</h1>
+  <input type="text" id="login-username" placeholder="Användarnamn"><br><br>
+  <input type="password" id="login-password" placeholder="Lösenord"><br><br>
+  <button onclick="login()">Logga in</button>
+</div>
+
+<!-- APP -->
+<div class="container hidden" id="app-container">
   <h1>📦 Lagersaldo</h1>
 
   <div class="top-bar">
@@ -128,7 +137,7 @@ form.hidden { display: none; }
     <input type="text" id="article" placeholder="Artikelnummer" required>
     <input type="number" id="quantity" placeholder="Antal" required>
     <input type="text" id="location" placeholder="Lagerplats" required>
-    <button class="add-btn">+ Lägg till</button>
+    <button class="add-btn" type="submit">+ Lägg till</button>
   </form>
 
   <input type="text" id="search" placeholder="🔍 Sök...">
@@ -148,145 +157,155 @@ form.hidden { display: none; }
   </table>
 </div>
 
+<!-- FIREBASE -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
-let products = JSON.parse(localStorage.getItem("products")) || [];
-let editingIndex = null;
+// ===== FIREBASE CONFIG =====
+const firebaseConfig = {
+  apiKey: "AIzaSyBYpgWLwCbSVRjao4Umd4odH-qifRAQfDI",
+  authDomain: "lagersystem-4f0e6.firebaseapp.com",
+  databaseURL: "https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/",
+  projectId: "lagersystem-4f0e6",
+  storageBucket: "lagersystem-4f0e6.firebasestorage.app",
+  messagingSenderId: "928284998538",
+  appId: "1:928284998538:web:139931d6588672f2f4e673",
+  measurementId: "G-2MQ9PQLJE8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ===== LOGIN =====
+const USER="swapos301", PASS="ost";
+function login(){
+  const u = document.getElementById("login-username").value;
+  const p = document.getElementById("login-password").value;
+  if(u===USER && p===PASS){
+    document.getElementById("login-container").classList.add("hidden");
+    document.getElementById("app-container").classList.remove("hidden");
+    loadProducts();
+  } else alert("Fel användarnamn eller lösenord");
+}
+
+// ===== THEME =====
+function toggleTheme(){ document.body.classList.toggle("dark"); }
+(function(){ if(localStorage.getItem("theme")==="dark") document.body.classList.add("dark"); })();
+function toggleForm(){ document.getElementById("productForm").classList.toggle("hidden"); }
+
+// ===== PRODUCTS =====
+let products = {};
+let editingKey = null;
 
 const list = document.getElementById("productList");
 const searchInput = document.getElementById("search");
-const form = document.getElementById("productForm");
 
-/* THEME */
-function toggleTheme() {
-  document.body.classList.toggle("dark");
-  localStorage.setItem("theme", document.body.classList.contains("dark") ? "dark" : "light");
-}
-(function loadTheme() {
-  if (localStorage.getItem("theme") === "dark") document.body.classList.add("dark");
-})();
-
-/* SHOW/HIDE FORM */
-function toggleForm() {
-  form.classList.toggle("hidden");
+// Ladda produkter från Firebase
+function loadProducts(){
+  db.ref("products").on("value", snapshot=>{
+    products = snapshot.val() || {};
+    render();
+  });
 }
 
-/* DATA */
-function save() { localStorage.setItem("products", JSON.stringify(products)); }
+function saveProducts(){
+  db.ref("products").set(products);
+}
 
-function render() {
+// RENDER
+function render(){
   const search = searchInput.value.toLowerCase();
-  list.innerHTML = "";
+  list.innerHTML="";
+  Object.keys(products).forEach(key=>{
+    const p = products[key];
+    if(!p.comment) p.comment="";
+    if(!p.picked) p.picked=0;
 
-  const filtered = products.filter(p =>
-    p.name.toLowerCase().includes(search) ||
-    p.article.toLowerCase().includes(search) ||
-    p.location.toLowerCase().includes(search)
-  );
+    if((p.name && p.name.toLowerCase().includes(search)) ||
+       (p.article && p.article.toLowerCase().includes(search)) ||
+       (p.location && p.location.toLowerCase().includes(search))){
+      const row = document.createElement("tr");
+      if(p.quantity===0) row.classList.add("out-of-stock");
 
-  filtered.forEach((p, index) => {
-    if (p.picked === undefined) p.picked = 0;
-    if (!p.comment) p.comment = "";
-
-    const realIndex = products.indexOf(p);
-    const row = document.createElement("tr");
-
-    if (p.quantity === 0) row.classList.add("out-of-stock");
-    if (editingIndex === realIndex) row.classList.add("editing");
-
-    if (editingIndex === realIndex) {
-      row.innerHTML = `
-        <td><input class="edit-input" id="edit-name" value="${p.name}"></td>
-        <td><input class="edit-input" id="edit-article" value="${p.article}"></td>
-        <td><input class="edit-input" id="edit-quantity" type="number" value="${p.quantity}"></td>
-        <td>${p.picked}</td>
-        <td>${p.comment}</td>
-        <td><button class="save-btn" onclick="saveEdit(${realIndex})">Spara</button></td>
-      `;
-    } else {
-      row.innerHTML = `
+      row.innerHTML=`
         <td>${p.name}</td>
         <td>${p.article}</td>
         <td>${p.quantity}</td>
         <td>${p.picked}</td>
+        <td><div class="comment-box" onclick="editComment('${key}')">${p.comment||'➕'}</div></td>
         <td>
-          <div class="comment-box" onclick="editComment(${realIndex})">
-            ${p.comment || "➕"}
-          </div>
-        </td>
-        <td>
-          <button onclick="editProduct(${realIndex})">✏️</button>
-          <button class="pick-btn" onclick="pickOne(${realIndex})">Plocka</button>
-          <button class="delete-btn" onclick="deleteProduct(${realIndex})">X</button>
+          <button onclick="editProduct('${key}')">✏️</button>
+          <button class="pick-btn" onclick="pickOne('${key}')">Plocka</button>
+          <button class="delete-btn" onclick="deleteProduct('${key}')">X</button>
         </td>
       `;
+      list.appendChild(row);
     }
-
-    list.appendChild(row);
   });
 }
 
-function editProduct(index) {
-  editingIndex = index;
-  render();
-}
+// ===== ACTIONS =====
+function pickOne(key){ if(products[key].quantity>0){ products[key].quantity--; products[key].picked++; saveProducts(); render(); } }
 
-function saveEdit(index) {
-  products[index].name = document.getElementById("edit-name").value;
-  products[index].article = document.getElementById("edit-article").value;
-  products[index].quantity = parseInt(document.getElementById("edit-quantity").value);
-  editingIndex = null;
-  save();
-  render();
-}
-
-function pickOne(index) {
-  if (products[index].quantity > 0) {
-    products[index].quantity--;
-    products[index].picked++;
-    save();
-    render();
-  }
-}
-
-function editComment(index) {
-  const row = list.children[index];
-  const cell = row.children[4];
-  cell.innerHTML = `<input class="comment-input" id="comment-${index}" value="${products[index].comment}">`;
-  const input = document.getElementById(`comment-${index}`);
+function editComment(key){
+  const cell = list.querySelector(`div[onclick="editComment('${key}')"]`);
+  cell.innerHTML=`<input class="comment-input" id="c-${key}" value="${products[key].comment}">`;
+  const input=document.getElementById(`c-${key}`);
   input.focus();
-  input.addEventListener("blur", () => {
-    products[index].comment = input.value;
-    save();
-    render();
-  });
+  input.addEventListener("blur",()=>{ products[key].comment=input.value; saveProducts(); render(); });
 }
 
-function deleteProduct(index) {
-  products.splice(index, 1);
-  save();
-  render();
+function editProduct(key){
+  const p = products[key];
+  editingKey=key;
+  document.getElementById("productForm").classList.remove("hidden");
+  document.getElementById("name").value = p.name;
+  document.getElementById("article").value = p.article;
+  document.getElementById("quantity").value = p.quantity;
+  document.getElementById("location").value = p.location;
+  document.querySelector("#productForm button").textContent = "💾 Spara";
 }
 
-document.getElementById("productForm").addEventListener("submit", e => {
+function deleteProduct(key){ delete products[key]; saveProducts(); render(); }
+
+// ===== ADD / SAVE PRODUCT =====
+document.getElementById("productForm").addEventListener("submit", e=>{
   e.preventDefault();
-  products.push({
-    name: name.value,
-    article: article.value,
-    quantity: parseInt(quantity.value),
-    location: location.value,
-    picked: 0,
-    comment: ""
-  });
-  save();
+  const nameInput=document.getElementById("name");
+  const articleInput=document.getElementById("article");
+  const quantityInput=document.getElementById("quantity");
+  const locationInput=document.getElementById("location");
+
+  if(!nameInput.value || !articleInput.value || !quantityInput.value || !locationInput.value){
+    alert("Fyll i alla fält!"); return;
+  }
+
+  if(editingKey){
+    products[editingKey].name=nameInput.value;
+    products[editingKey].article=articleInput.value;
+    products[editingKey].quantity=parseInt(quantityInput.value);
+    products[editingKey].location=locationInput.value;
+    editingKey=null;
+  } else {
+    const key=Date.now().toString();
+    products[key]={
+      name:nameInput.value,
+      article:articleInput.value,
+      quantity:parseInt(quantityInput.value),
+      location:locationInput.value,
+      picked:0,
+      comment:""
+    };
+  }
+
+  saveProducts();
   render();
   e.target.reset();
-  form.classList.add("hidden"); // döljer formuläret igen efter lägg till
+  document.getElementById("productForm").classList.add("hidden");
+  document.querySelector("#productForm button").textContent = "+ Lägg till";
 });
 
 searchInput.addEventListener("input", render);
 
-render();
 </script>
-
 </body>
 </html>

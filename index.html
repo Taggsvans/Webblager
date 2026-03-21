@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="sv">
+<head>
+<meta charset="UTF-8">
+<title>Lagersaldo Firebase</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<style>
+body { font-family: "Segoe UI"; margin:0; padding:20px; background:#f4f6f8; color:#1e293b; }
+body.dark { background:#0f172a; color:#fff; }
+.container { max-width:1100px; margin:auto; background:#fff; padding:25px; border-radius:12px; }
+.container.dark { background: rgba(255,255,255,0.05); }
+.hidden { display:none; }
+button { padding:6px; border:none; border-radius:5px; cursor:pointer; }
+.top-bar { display:flex; gap:10px; margin-bottom:10px; }
+.toggle-btn, .show-form-btn { background:#2563eb; color:white; }
+input { padding:10px; border-radius:6px; border:1px solid #e5e7eb; }
+table { width:100%; border-collapse: collapse; text-align:center; }
+th { background:#2563eb; color:white; padding:12px; }
+td { padding:10px; border-bottom:1px solid #e5e7eb; }
+tr.out-of-stock { background:rgba(255,0,0,0.1); }
+.comment-box { cursor:text; padding:5px; }
+.comment-input, .edit-input { width:90%; padding:5px; text-align:center; }
+</style>
+</head>
+<body>
+
+<div class="container" id="login-container">
+  <h1>🔒 Logga in</h1>
+  <input type="text" id="login-username" placeholder="Användarnamn"><br><br>
+  <input type="password" id="login-password" placeholder="Lösenord"><br><br>
+  <button onclick="login()">Logga in</button>
+</div>
+
+<div class="container hidden" id="app-container">
+  <h1>📦 Lagersaldo</h1>
+  <div class="top-bar">
+    <button class="toggle-btn" onclick="toggleTheme()">🌙 / ☀️</button>
+    <button class="show-form-btn" onclick="toggleForm()">➕ Lägg till artikel</button>
+  </div>
+
+  <form id="productForm" class="hidden">
+    <input type="text" id="name" placeholder="Produktnamn" required>
+    <input type="text" id="article" placeholder="Artikelnummer" required>
+    <input type="number" id="quantity" placeholder="Antal" required>
+    <input type="text" id="location" placeholder="Lagerplats" required>
+    <button type="submit">+ Lägg till</button>
+  </form>
+
+  <input type="text" id="search" placeholder="🔍 Sök...">
+  <table>
+    <thead>
+      <tr>
+        <th>Namn</th><th>Artikel</th><th>Antal</th><th>Plockat</th><th>Kommentar</th><th>Åtgärder</th>
+      </tr>
+    </thead>
+    <tbody id="productList"></tbody>
+  </table>
+</div>
+
+<script>
+// ======= FIREBASE CONFIG =======
+// For Firebase JS SDK v7.20.0 and later, measurementId is optional
+const firebaseConfig = {
+  apiKey: "AIzaSyBYpgWLwCbSVRjao4Umd4odH-qifRAQfDI",
+  authDomain: "lagersystem-4f0e6.firebaseapp.com",
+  databaseURL: "https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/",
+  projectId: "lagersystem-4f0e6",
+  storageBucket: "lagersystem-4f0e6.firebasestorage.app",
+  messagingSenderId: "928284998538",
+  appId: "1:928284998538:web:139931d6588672f2f4e673",
+  measurementId: "G-2MQ9PQLJE8"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+
+// ======= LOGIN =======
+const USER = "swapos301";
+const PASS = "ost";
+
+function login() {
+  const u = document.getElementById("login-username").value;
+  const p = document.getElementById("login-password").value;
+  if(u===USER && p===PASS) {
+    document.getElementById("login-container").classList.add("hidden");
+    document.getElementById("app-container").classList.remove("hidden");
+    loadProducts();
+  } else {
+    alert("Fel användarnamn eller lösenord");
+  }
+}
+
+// ======= THEME =======
+function toggleTheme() {
+  document.body.classList.toggle("dark");
+}
+
+// ======= FORM TOGGLE =======
+function toggleForm() {
+  document.getElementById("productForm").classList.toggle("hidden");
+}
+
+// ======= PRODUCTS =======
+let products = {};
+let editingIndex = null;
+
+function loadProducts() {
+  db.ref("products").on("value", snapshot => {
+    products = snapshot.val() || {};
+    render();
+  });
+}
+
+function saveProducts() {
+  db.ref("products").set(products);
+}
+
+// ======= RENDER =======
+function render() {
+  const list = document.getElementById("productList");
+  const search = document.getElementById("search").value.toLowerCase();
+  list.innerHTML = "";
+
+  Object.keys(products).forEach(key => {
+    const p = products[key];
+    if(!p.comment) p.comment="";
+    if(!p.picked) p.picked=0;
+    if(
+      p.name.toLowerCase().includes(search) ||
+      p.article.toLowerCase().includes(search) ||
+      p.location.toLowerCase().includes(search)
+    ) {
+      const row = document.createElement("tr");
+      if(p.quantity===0) row.classList.add("out-of-stock");
+      row.innerHTML = `
+        <td>${p.name}</td>
+        <td>${p.article}</td>
+        <td>${p.quantity}</td>
+        <td>${p.picked}</td>
+        <td><div class="comment-box" onclick="editComment('${key}')">${p.comment||'➕'}</div></td>
+        <td>
+          <button onclick="editProduct('${key}')">✏️</button>
+          <button onclick="pickOne('${key}')">Plocka</button>
+          <button onclick="deleteProduct('${key}')">X</button>
+        </td>
+      `;
+      list.appendChild(row);
+    }
+  });
+}
+
+// ======= ACTIONS =======
+function pickOne(key){
+  if(products[key].quantity>0){ products[key].quantity--; products[key].picked++; saveProducts(); render(); }
+}
+
+function editComment(key){
+  const cell = document.querySelector(`div[onclick="editComment('${key}')"]`);
+  cell.innerHTML = `<input class="comment-input" id="c-${key}" value="${products[key].comment}">`;
+  const input = document.getElementById(`c-${key}`);
+  input.focus();
+  input.addEventListener("blur", ()=>{
+    products[key].comment = input.value;
+    saveProducts(); render();
+  });
+}
+
+function editProduct(key){
+  const p = products[key];
+  const newName = prompt("Ändra namn", p.name);
+  if(newName) p.name = newName;
+  saveProducts(); render();
+}
+
+function deleteProduct(key){
+  delete products[key]; saveProducts(); render();
+}
+
+// ======= ADD PRODUCT =======
+document.getElementById("productForm").addEventListener("submit", e=>{
+  e.preventDefault();
+  const key = Date.now().toString();
+  products[key] = {
+    name: name.value,
+    article: article.value,
+    quantity: parseInt(quantity.value),
+    location: location.value,
+    picked:0,
+    comment:""
+  };
+  saveProducts();
+  render();
+  e.target.reset();
+  toggleForm();
+});
+
+document.getElementById("search").addEventListener("input", render);
+
+</script>
+</body>
+</html>

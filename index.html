@@ -12,7 +12,7 @@
   --text: #1e293b;
   --accent: #008724;
   --border: #e5e7eb;
-  --neon: #00f0ff;
+  --neon: #fff500;
 }
 
 body.dark {
@@ -21,7 +21,7 @@ body.dark {
   --text: #ffffff;
   --accent: #008724;
   --border: rgba(255,255,255,0.1);
-  --neon: #00ffea;
+  --neon: #fff500;
 }
 
 body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--text); margin:0; padding:20px; transition:.3s; }
@@ -78,7 +78,13 @@ form.hidden{display:none;}
   <table>
     <thead>
       <tr>
-        <th>Namn</th><th>Artikel</th><th>Antal</th><th>Plockat</th><th>Kommentar</th><th>Åtgärder</th>
+        <th>Namn</th>
+        <th>Artikel</th>
+        <th>Antal</th>
+        <th>Lagerplats</th>
+        <th>Plockat</th>
+        <th>Kommentar</th>
+        <th>Åtgärder</th>
       </tr>
     </thead>
     <tbody id="productList"></tbody>
@@ -127,7 +133,6 @@ let products={},editingKey=null;
 function loadProducts(){
   db.ref("products").on("value", snapshot=>{
     products=snapshot.val()||{};
-    // uppdatera comment automatiskt baserat på quantity
     Object.keys(products).forEach(k=>{
       if(products[k].quantity>0 && (!products[k].comment || products[k].comment==="Slut")) products[k].comment="Tillgänglig";
       if(products[k].quantity===0) products[k].comment="Slut";
@@ -146,7 +151,6 @@ function render(){
     const p=products[key];
     if(!p.picked)p.picked=0;
     if(!p.comment)p.comment=p.quantity>0?"Tillgänglig":"Slut";
-
     if((p.name&&p.name.toLowerCase().includes(search))||(p.article&&p.article.toLowerCase().includes(search))||(p.location&&p.location.toLowerCase().includes(search))){
       const row=document.createElement("tr");
       if(p.quantity===0)row.classList.add("out-of-stock");
@@ -156,6 +160,7 @@ function render(){
           <td><input class="edit-input neon-input" id="edit-name" value="${p.name}"></td>
           <td><input class="edit-input neon-input" id="edit-article" value="${p.article}"></td>
           <td><input class="edit-input neon-input" id="edit-quantity" type="number" value="${p.quantity}"></td>
+          <td><input class="edit-input neon-input" id="edit-location" value="${p.location}"></td>
           <td>${p.picked}</td>
           <td><input class="edit-input neon-input" id="edit-comment" value="${p.comment}"></td>
           <td><button class="save-btn-inline" onclick="saveEdit('${key}')">Spara</button></td>
@@ -165,6 +170,7 @@ function render(){
           <td>${p.name}</td>
           <td>${p.article}</td>
           <td>${p.quantity}</td>
+          <td>${p.location}</td>
           <td>${p.picked}</td>
           <td><div class="comment-box" onclick="editComment('${key}')">${p.comment}</div></td>
           <td>
@@ -196,7 +202,7 @@ function saveEdit(key){
   p.name=document.getElementById("edit-name").value;
   p.article=document.getElementById("edit-article").value;
   p.quantity=parseInt(document.getElementById("edit-quantity").value);
-  // uppdatera comment automatiskt om tom eller "Slut"
+  p.location=document.getElementById("edit-location").value;
   const c=document.getElementById("edit-comment").value;
   p.comment=c || (p.quantity>0?"Tillgänglig":"Slut");
   editingKey=null; saveProducts(); render();

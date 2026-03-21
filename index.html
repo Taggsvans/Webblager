@@ -2,7 +2,7 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<title>Lagersaldo Firebase</title>
+<title>Lagersaldo Firebase Inline Edit</title>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
@@ -12,6 +12,7 @@
   --text: #1e293b;
   --accent: #2563eb;
   --border: #e5e7eb;
+  --neon: #00f0ff;
 }
 
 body.dark {
@@ -20,6 +21,7 @@ body.dark {
   --text: #ffffff;
   --accent: #00f0ff;
   --border: rgba(255,255,255,0.1);
+  --neon: #00ffea;
 }
 
 body {
@@ -70,15 +72,23 @@ input {
   text-align: center;
   background: transparent;
   color: var(--text);
+  transition: 0.2s;
 }
 
-.add-btn { 
+input.neon-input {
+  border: 2px solid var(--neon);
+  box-shadow: 0 0 8px var(--neon);
+  color: var(--text);
+}
+
+.add-btn, .save-btn-inline {
   grid-column: span 2;
   background: var(--accent);
   color: white;
   border: none;
   padding: 10px;
   cursor: pointer;
+  border-radius: 6px;
 }
 
 #search { width: 100%; margin-bottom: 15px; }
@@ -103,12 +113,12 @@ td {
 tr.out-of-stock { background: rgba(255,0,0,0.1); }
 
 .comment-box { cursor: text; padding: 5px; }
-.comment-input, .edit-input { width: 90%; padding: 5px; text-align: center; }
+.comment-input, .edit-input { width: 90%; padding: 5px; text-align: center; border: 2px solid var(--neon); box-shadow: 0 0 6px var(--neon); }
 
 button { padding: 6px; border: none; border-radius: 5px; cursor: pointer; }
 .pick-btn { background: #f59e0b; color: white; }
 .delete-btn { background: #ef4444; color: white; }
-.save-btn { background: #22c55e; color: white; }
+.save-btn-inline { background: #22c55e; color: white; }
 
 form.hidden { display: none; }
 .container.hidden { display: none; }
@@ -139,7 +149,7 @@ form.hidden { display: none; }
     <input type="text" id="article" placeholder="Artikelnummer" required>
     <input type="number" id="quantity" placeholder="Antal" required>
     <input type="text" id="location" placeholder="Lagerplats" required>
-    <button type="submit">+ Lägg till</button>
+    <button type="submit" class="add-btn">+ Lägg till</button>
   </form>
 
   <input type="text" id="search" placeholder="🔍 Sök...">
@@ -184,7 +194,7 @@ function login(){
   if(u===USER && p===PASS){
     document.getElementById("login-container").classList.add("hidden");
     document.getElementById("app-container").classList.remove("hidden");
-    loadProducts();  // Ladda Firebase-data först efter login
+    loadProducts();
   } else alert("Fel användarnamn eller lösenord");
 }
 
@@ -196,11 +206,16 @@ function toggleForm(){ document.getElementById("productForm").classList.toggle("
 
 // ===== PRODUCTS =====
 let products = {};
-let editingIndex = null;
+let editingKey = null;
 
 function loadProducts(){
   db.ref("products").on("value", snapshot=>{
     products = snapshot.val() || {};
+    // Standardkommentar: Tillgänglig om >0, Slut om 0
+    Object.keys(products).forEach(key=>{
+      if(products[key].quantity>0 && !products[key].comment) products[key].comment="Tillgänglig";
+      if(products[key].quantity===0) products[key].comment="Slut";
+    });
     render();
   });
 }
@@ -215,8 +230,10 @@ function render(){
 
   Object.keys(products).forEach(key=>{
     const p = products[key];
-    if(!p.comment) p.comment="";
     if(!p.picked) p.picked=0;
+    if(!p.comment){
+      p.comment = p.quantity>0 ? "Tillgänglig" : "Slut";
+    }
 
     if(
       (p.name && p.name.toLowerCase().includes(search)) ||
@@ -225,18 +242,30 @@ function render(){
     ){
       const row = document.createElement("tr");
       if(p.quantity===0) row.classList.add("out-of-stock");
-      row.innerHTML = `
-        <td>${p.name}</td>
-        <td>${p.article}</td>
-        <td>${p.quantity}</td>
-        <td>${p.picked}</td>
-        <td><div class="comment-box" onclick="editComment('${key}')">${p.comment||'➕'}</div></td>
-        <td>
-          <button onclick="editProduct('${key}')">✏️</button>
-          <button onclick="pickOne('${key}')">Plocka</button>
-          <button onclick="deleteProduct('${key}')">X</button>
-        </td>
-      `;
+
+      if(editingKey===key){
+        row.innerHTML = `
+          <td><input class="edit-input neon-input" id="edit-name" value="${p.name}"></td>
+          <td><input class="edit-input neon-input" id="edit-article" value="${p.article}"></td>
+          <td><input class="edit-input neon-input" id="edit-quantity" type="number" value="${p.quantity}"></td>
+          <td>${p.picked}</td>
+          <td><input class="edit-input neon-input" id="edit-comment" value="${p.comment}"></td>
+          <td><button class="save-btn-inline" onclick="saveEdit('${key}')">Spara</button></td>
+        `;
+      } else {
+        row.innerHTML = `
+          <td>${p.name}</td>
+          <td>${p.article}</td>
+          <td>${p.quantity}</td>
+          <td>${p.picked}</td>
+          <td><div class="comment-box" onclick="editComment('${key}')">${p.comment}</div></td>
+          <td>
+            <button onclick="startEdit('${key}')">✏️</button>
+            <button class="pick-btn" onclick="pickOne('${key}')">Plocka</button>
+            <button class="delete-btn" onclick="deleteProduct('${key}')">X</button>
+          </td>
+        `;
+      }
       list.appendChild(row);
     }
   });
@@ -244,25 +273,35 @@ function render(){
 
 // ===== ACTIONS =====
 function pickOne(key){
-  if(products[key].quantity>0){ products[key].quantity--; products[key].picked++; saveProducts(); render(); }
+  if(products[key].quantity>0){ 
+    products[key].quantity--; 
+    products[key].picked++; 
+    products[key].comment = products[key].quantity>0 ? "Tillgänglig" : "Slut";
+    saveProducts(); render(); 
+  }
+}
+
+function startEdit(key){ editingKey = key; render(); }
+
+function saveEdit(key){
+  const p = products[key];
+  p.name = document.getElementById("edit-name").value;
+  p.article = document.getElementById("edit-article").value;
+  p.quantity = parseInt(document.getElementById("edit-quantity").value);
+  p.comment = document.getElementById("edit-comment").value || (p.quantity>0 ? "Tillgänglig" : "Slut");
+  editingKey = null;
+  saveProducts(); render();
 }
 
 function editComment(key){
   const cell = document.querySelector(`div[onclick="editComment('${key}')"]`);
-  cell.innerHTML = `<input class="comment-input" id="c-${key}" value="${products[key].comment}">`;
+  cell.innerHTML = `<input class="comment-input neon-input" id="c-${key}" value="${products[key].comment}">`;
   const input = document.getElementById(`c-${key}`);
   input.focus();
   input.addEventListener("blur", ()=>{
-    products[key].comment = input.value;
+    products[key].comment = input.value || (products[key].quantity>0 ? "Tillgänglig" : "Slut");
     saveProducts(); render();
   });
-}
-
-function editProduct(key){
-  const p = products[key];
-  const newName = prompt("Ändra namn", p.name);
-  if(newName) p.name = newName;
-  saveProducts(); render();
 }
 
 function deleteProduct(key){
@@ -289,7 +328,7 @@ document.getElementById("productForm").addEventListener("submit", e=>{
     quantity: parseInt(quantityInput.value),
     location: locationInput.value,
     picked:0,
-    comment:""
+    comment: quantityInput.value>0 ? "Tillgänglig" : "Slut"
   };
 
   saveProducts();
@@ -298,9 +337,7 @@ document.getElementById("productForm").addEventListener("submit", e=>{
   toggleForm();
 });
 
-// SEARCH
 document.getElementById("search").addEventListener("input", render);
-
 </script>
 </body>
 </html>

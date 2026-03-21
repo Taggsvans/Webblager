@@ -2,247 +2,428 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<title>Lagersaldo Firebase Inline Edit</title>
+<title>Lagersaldo</title>
+
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+
 <style>
 :root {
-  --bg: #f4f6f8;
-  --card: #ffffff;
-  --text: #1e293b;
-  --accent: #008724;
-  --border: #e5e7eb;
-  --neon: #fff500;
+  --bg:#f4f6f8;
+  --card:#fff;
+  --text:#1e293b;
+  --accent:#008724;
+  --border:#e5e7eb;
+  --neon:#fff500;
 }
 
 body.dark {
-  --bg: #0f172a;
-  --card: rgba(255,255,255,0.05);
-  --text: #ffffff;
-  --accent: #008724;
-  --border: rgba(255,255,255,0.1);
-  --neon: #fff500;
+  --bg:#0f172a;
+  --card:rgba(255,255,255,0.05);
+  --text:#fff;
+  --border:rgba(255,255,255,0.1);
 }
 
-body { font-family:"Segoe UI",sans-serif; background:var(--bg); color:var(--text); margin:0; padding:20px; transition:.3s; }
-.container { max-width:1100px; margin:auto; background:var(--card); padding:25px; border-radius:12px; }
-h1{text-align:center;}
-.top-bar{display:flex;gap:10px;margin-bottom:10px;}
-.toggle-btn, .show-form-btn{background:var(--accent);color:white;border:none;padding:10px;cursor:pointer;border-radius:6px;}
-form{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin:10px 0;}
-input{padding:10px;border-radius:6px;border:1px solid var(--border);text-align:center;background:transparent;color:var(--text);transition:.2s;}
-input.neon-input{border:2px solid var(--neon);box-shadow:0 0 8px var(--neon);}
-.add-btn, .save-btn-inline{grid-column:span 2;background:var(--accent);color:white;border:none;padding:10px;cursor:pointer;border-radius:6px;}
-#search{width:100%;margin-bottom:15px;}
-table{width:100%;border-collapse:collapse;text-align:center;}
-th{background:var(--accent);color:white;padding:12px;}
-td{padding:10px;border-bottom:1px solid var(--border);}
-tr.out-of-stock{background:rgba(255,0,0,0.1);}
-.comment-box{cursor:text;padding:5px;}
-.comment-input,.edit-input{width:90%;padding:5px;text-align:center;border:2px solid var(--neon);box-shadow:0 0 6px var(--neon);}
-button{padding:6px;border:none;border-radius:5px;cursor:pointer;}
-.pick-btn{background:#f59e0b;color:white;}
-.delete-btn{background:#ef4444;color:white;}
-.save-btn-inline{background:#22c55e;color:white;}
-form.hidden{display:none;}
-.container.hidden{display:none;}
+body {
+  font-family:"Segoe UI";
+  background:var(--bg);
+  color:var(--text);
+  padding:20px;
+}
+
+.container {
+  max-width:1100px;
+  margin:auto;
+  background:var(--card);
+  padding:25px;
+  border-radius:12px;
+}
+
+table{
+  width:100%;
+  border-collapse:collapse;
+  text-align:center;
+  table-layout:fixed;
+}
+
+th{
+  background:var(--accent);
+  color:#fff;
+  padding:10px;
+}
+
+td{
+  padding:7px;
+  border-bottom:1px solid var(--border);
+  font-size:15px;
+}
+
+td input{
+  font: inherit;
+  color: inherit;
+  background: transparent;
+  border: none;
+  padding: 0;
+  margin: 0;
+  text-align: center;
+  width: auto;
+  min-width: 40px;
+}
+
+/* 🔥 NEON UTAN LAYOUT SHIFT */
+.neon{
+  border-radius: 4px;
+  border: 1px solid var(--neon);
+  color: var(--text);
+  background: transparent;
+  box-shadow:
+    0 0 5px var(--neon),
+    0 0 10px var(--neon),
+    0 0 20px var(--neon),
+    0 0 30px rgba(255, 245, 0, 0.5);
+  transition: box-shadow 0.2s ease;
+}
+
+.neon:focus {
+  outline: none;
+  box-shadow:
+    0 0 8px var(--neon),
+    0 0 16px var(--neon),
+    0 0 24px var(--neon),
+    0 0 40px rgba(255, 245, 0, 0.7);
+}
+
+.out-of-stock{
+  background:rgba(255,0,0,0.1);
+}
+
+button{
+  padding:6px;
+  border:none;
+  border-radius:5px;
+  cursor:pointer;
+  margin:0 2px;
+}
+
+.pick-btn{background:#f59e0b;color:#fff;}
+.delete-btn{background:#ef4444;color:#fff;}
+.save-btn{background:#22c55e;color:#fff;}
+
+/* SÖKRUTA */
+#search {
+  display: block;
+  margin: 20px auto;
+  padding: 10px 15px;
+  border-radius: 10px;
+  border: 1px solid var(--border);
+  width: 60%;
+  max-width: 400px;
+  text-align: center;
+  font-size: 14px;
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+}
+
+/* FORMULÄR */
+#productForm {
+  display: none; /* dolt som default */
+  flex-wrap: wrap;
+  gap: 10px;
+  margin-top: 15px; /* ✅ sänkt från knapparna */
+  margin-bottom: 15px;
+  opacity: 0;
+  transform: translateY(-10px);
+  transition: opacity 0.3s ease, transform 0.3s ease;
+}
+
+#productForm.show {
+  display: flex;
+  opacity: 1;
+  transform: translateY(0);
+}
+
+#productForm input {
+  flex: 1 1 150px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  border: 1px solid var(--border);
+  box-shadow: inset 0 1px 3px rgba(0,0,0,0.1);
+  font-size: 14px;
+}
+
+#productForm button {
+  background: var(--accent);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 8px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  transition: background 0.2s;
+}
+
+#productForm button:hover {
+  background: #00691c;
+}
+
+.soptunna{
+  background: transparent !important;
+  color: inherit !important;
+}
+
 </style>
 </head>
 
 <body>
 
 <div class="container" id="login-container">
-  <h1>🔒 Logga in</h1>
-  <input type="text" id="login-username" placeholder="Användarnamn"><br><br>
-  <input type="password" id="login-password" placeholder="Lösenord"><br><br>
-  <button onclick="login()">Logga in</button>
+<h2>🔒 Logga in</h2>
+<input id="login-username" placeholder="Användarnamn"><br><br>
+<input id="login-password" type="password" placeholder="Lösenord"><br><br>
+<button onclick="login()">Logga in</button>
 </div>
 
-<div class="container hidden" id="app-container">
-  <h1>📦 Lagersaldo</h1>
-  <div class="top-bar">
-    <button class="toggle-btn" onclick="toggleTheme()">🌙 / ☀️</button>
-    <button class="show-form-btn" onclick="toggleForm()">➕ Lägg till artikel</button>
-  </div>
+<div class="container" id="app-container" style="display:none;">
+<h2>📦 Lagersaldo</h2>
 
-  <form id="productForm" class="hidden">
-    <input type="text" id="name" placeholder="Produktnamn" required>
-    <input type="text" id="article" placeholder="Artikelnummer" required>
-    <input type="number" id="quantity" placeholder="Antal" required>
-    <input type="text" id="location" placeholder="Lagerplats" required>
-    <button type="submit" class="add-btn">+ Lägg till</button>
-  </form>
+<div style="margin-bottom:10px;">
+  <button onclick="toggleTheme()">🌙 Dark Mode</button>
+  <button id="toggleFormBtn">➕ Ny produkt</button>
+</div>
 
-  <input type="text" id="search" placeholder="🔍 Sök...">
+<form id="productForm">
+  <input id="name" placeholder="Produktnamn" required>
+  <input id="article" placeholder="Artikelnummer" required>
+  <input id="quantity" type="number" placeholder="Antal" required>
+  <input id="location" placeholder="Lagerplats" required>
+  <button>+ Lägg till</button>
+</form>
 
-  <table>
-    <thead>
-      <tr>
-        <th>Namn</th>
-        <th>Artikel</th>
-        <th>Antal</th>
-        <th>Lagerplats</th>
-        <th>Plockat</th>
-        <th>Kommentar</th>
-        <th>Åtgärder</th>
-      </tr>
-    </thead>
-    <tbody id="productList"></tbody>
-  </table>
+<input id="search" placeholder="🔍 Sök...">
+
+<table>
+<thead>
+<tr>
+<th>Namn</th>
+<th>Artikel</th>
+<th>Antal</th>
+<th>Lagerplats</th>
+<th>Plockat</th>
+<th>Status</th>
+<th>Kommentar</th>
+<th>Åtgärder</th>
+</tr>
+</thead>
+<tbody id="productList"></tbody>
+</table>
 </div>
 
 <script>
-// Firebase config
+// FIREBASE
 const firebaseConfig = {
-  apiKey: "AIzaSyBYpgWLwCbSVRjao4Umd4odH-qifRAQfDI",
-  authDomain: "lagersystem-4f0e6.firebaseapp.com",
-  databaseURL: "https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/",
-  projectId: "lagersystem-4f0e6",
-  storageBucket: "lagersystem-4f0e6.firebasestorage.app",
-  messagingSenderId: "928284998538",
-  appId: "1:928284998538:web:139931d6588672f2f4e673",
-  measurementId: "G-2MQ9PQLJE8"
+  apiKey:"AIzaSy...",
+  authDomain:"lagersystem-4f0e6.firebaseapp.com",
+  databaseURL:"https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/"
 };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // LOGIN
-const USER="swapos301",PASS="ost";
 function login(){
   const u=document.getElementById("login-username").value;
   const p=document.getElementById("login-password").value;
-  if(u===USER && p===PASS){ localStorage.setItem("loggedIn","true"); showApp(); }
-  else alert("Fel användarnamn eller lösenord");
+
+  if(u==="swapos301" && p==="ost"){
+    localStorage.setItem("loggedIn","true");
+    showApp();
+  } else alert("Fel login");
 }
+
 function showApp(){
-  document.getElementById("login-container").classList.add("hidden");
-  document.getElementById("app-container").classList.remove("hidden");
+  document.getElementById("login-container").style.display="none";
+  document.getElementById("app-container").style.display="block";
   loadProducts();
 }
+
+// AUTO LOGIN IF ALREADY LOGGED IN
 if(localStorage.getItem("loggedIn")==="true") showApp();
 
-// THEME
-function toggleTheme(){ document.body.classList.toggle("dark"); }
+// UI
+function toggleTheme(){document.body.classList.toggle("dark");}
 
-// FORM
-function toggleForm(){ document.getElementById("productForm").classList.toggle("hidden"); }
+// FORM TOGGLE
+const toggleBtn = document.getElementById("toggleFormBtn");
+const productForm = document.getElementById("productForm");
 
-// PRODUCTS
-let products={},editingKey=null;
+toggleBtn.addEventListener("click", () => {
+  if (!productForm.classList.contains("show")) {
+    productForm.classList.add("show");
+    setTimeout(()=>document.getElementById("name")?.focus(), 0);
+  } else {
+    productForm.style.opacity = "0";
+    productForm.style.transform = "translateY(-10px)";
+    setTimeout(()=>{
+      productForm.classList.remove("show");
+      productForm.style.opacity = "";
+      productForm.style.transform = "";
+    }, 300);
+  }
+});
+
+// DATA
+let products={}, editingKey=null, activeComment=null;
 
 function loadProducts(){
-  db.ref("products").on("value", snapshot=>{
-    products=snapshot.val()||{};
-    Object.keys(products).forEach(k=>{
-      if(products[k].quantity>0 && (!products[k].comment || products[k].comment==="Slut")) products[k].comment="Tillgänglig";
-      if(products[k].quantity===0) products[k].comment="Slut";
-    });
+  db.ref("products").on("value", snap=>{
+    products=snap.val()||{};
     render();
   });
 }
 
-function saveProducts(){ db.ref("products").set(products); }
+function save(){ db.ref("products").set(products); }
+
+function sortedKeys(){
+  return Object.keys(products).sort((a,b)=>{
+    return (products[a].location||"").localeCompare(products[b].location||"");
+  });
+}
 
 function render(){
   const list=document.getElementById("productList");
   const search=document.getElementById("search").value.toLowerCase();
   list.innerHTML="";
-  Object.keys(products).forEach(key=>{
+
+  sortedKeys().forEach(key=>{
     const p=products[key];
     if(!p.picked)p.picked=0;
-    if(!p.comment)p.comment=p.quantity>0?"Tillgänglig":"Slut";
-    if((p.name&&p.name.toLowerCase().includes(search))||(p.article&&p.article.toLowerCase().includes(search))||(p.location&&p.location.toLowerCase().includes(search))){
-      const row=document.createElement("tr");
-      if(p.quantity===0)row.classList.add("out-of-stock");
 
-      if(editingKey===key){
-        row.innerHTML=`
-          <td><input class="edit-input neon-input" id="edit-name" value="${p.name}"></td>
-          <td><input class="edit-input neon-input" id="edit-article" value="${p.article}"></td>
-          <td><input class="edit-input neon-input" id="edit-quantity" type="number" value="${p.quantity}"></td>
-          <td><input class="edit-input neon-input" id="edit-location" value="${p.location}"></td>
-          <td>${p.picked}</td>
-          <td><input class="edit-input neon-input" id="edit-comment" value="${p.comment}"></td>
-          <td><button class="save-btn-inline" onclick="saveEdit('${key}')">Spara</button></td>
-        `;
-      }else{
-        row.innerHTML=`
-          <td>${p.name}</td>
-          <td>${p.article}</td>
-          <td>${p.quantity}</td>
-          <td>${p.location}</td>
-          <td>${p.picked}</td>
-          <td><div class="comment-box" onclick="editComment('${key}')">${p.comment}</div></td>
-          <td>
-            <button onclick="startEdit('${key}')">✏️</button>
-            <button class="pick-btn" onclick="pickOne('${key}')">Plocka</button>
-            <button class="delete-btn" onclick="deleteProduct('${key}')">X</button>
-          </td>
-        `;
-      }
-      list.appendChild(row);
-    }
+    const status=p.quantity>0?"Tillgänglig":"Slut";
+
+    if(!(p.name||"").toLowerCase().includes(search) &&
+       !(p.article||"").toLowerCase().includes(search) &&
+       !(p.location||"").toLowerCase().includes(search)) return;
+
+    const editing = editingKey===key;
+
+    const row=document.createElement("tr");
+    if(p.quantity===0) row.classList.add("out-of-stock");
+
+    row.innerHTML=`
+<td>${editing ? `<input class="neon" style="width:100%" id="n-${key}" value="${p.name}">` : p.name}</td>
+<td>${editing ? `<input class="neon" style="width:100%" id="a-${key}" value="${p.article}">` : p.article}</td>
+<td>${editing ? `<input class="neon" style="width:100%" id="q-${key}" type="number" value="${p.quantity}">` : p.quantity}</td>
+<td>${editing ? `<input class="neon" style="width:100%" id="l-${key}" value="${p.location}">` : p.location}</td>
+<td>
+  ${editing
+    ? `<input class="neon" style="width:100%" id="p-${key}" type="number" value="${p.picked}">`
+    : `${p.picked} <button class="soptunna" onclick="resetPicked('${key}')">🗑️</button>`}
+</td>
+<td>${status}</td>
+<td>
+  ${
+    activeComment===key
+    ? `<input class="neon" style="width:100%" id="c-${key}" value="${p.comment||""}" onblur="saveComment('${key}')">`
+    : `<div onclick="openComment('${key}')" style="min-height:20px; cursor:text; background:#f0f0f0; padding:2px;">${p.comment||""}</div>`
+  }
+</td>
+<td>
+  ${
+    editing
+    ? `<button class="save-btn" onclick="saveEdit('${key}')">Uppdatera</button>`
+    : `
+      <button onclick="edit('${key}')">✏️</button>
+      <button class="pick-btn" onclick="pick('${key}')">Plocka</button>
+      <button class="delete-btn" onclick="del('${key}')">X</button>
+    `
+  }
+</td>
+`;
+
+    list.appendChild(row);
   });
 }
 
 // ACTIONS
-function pickOne(key){
-  if(products[key].quantity>0){ 
-    products[key].quantity--; 
-    products[key].picked++; 
-    products[key].comment = products[key].quantity>0?"Tillgänglig":"Slut";
-    saveProducts(); render();
-  }
+function edit(key){
+  editingKey = key; 
+  render();
+  setTimeout(()=>document.getElementById(`n-${key}`)?.focus(),0);
 }
-
-function startEdit(key){ editingKey=key; render(); }
 
 function saveEdit(key){
   const p=products[key];
-  p.name=document.getElementById("edit-name").value;
-  p.article=document.getElementById("edit-article").value;
-  p.quantity=parseInt(document.getElementById("edit-quantity").value);
-  p.location=document.getElementById("edit-location").value;
-  const c=document.getElementById("edit-comment").value;
-  p.comment=c || (p.quantity>0?"Tillgänglig":"Slut");
-  editingKey=null; saveProducts(); render();
+  p.name=document.getElementById(`n-${key}`).value||"";
+  p.article=document.getElementById(`a-${key}`).value||"";
+  p.quantity=parseInt(document.getElementById(`q-${key}`).value)||0;
+  p.location=document.getElementById(`l-${key}`).value||"";
+  p.picked=parseInt(document.getElementById(`p-${key}`).value)||0;
+  editingKey=null;
+  save();
+  render();
 }
 
-function editComment(key){
-  const cell=document.querySelector(`div[onclick="editComment('${key}')"]`);
-  cell.innerHTML=`<input class="comment-input neon-input" id="c-${key}" value="${products[key].comment}">`;
-  const input=document.getElementById(`c-${key}`);
-  input.focus();
-  input.addEventListener("blur",()=>{
-    products[key].comment=input.value|| (products[key].quantity>0?"Tillgänglig":"Slut");
-    saveProducts(); render();
-  });
+function pick(key){
+  if(products[key].quantity>0){
+    products[key].quantity--;
+    products[key].picked++;
+    save();
+  }
 }
 
-function deleteProduct(key){ delete products[key]; saveProducts(); render(); }
+function resetPicked(key){
+  products[key].picked=0;
+  save();
+}
 
-document.getElementById("productForm").addEventListener("submit",e=>{
+function del(key){
+  delete products[key];
+  save();
+}
+
+function openComment(key){
+  activeComment=key;
+  render();
+}
+
+function saveComment(key){
+  const val=document.getElementById(`c-${key}`).value;
+  products[key].comment=val;
+  activeComment=null;
+  save();
+}
+
+// ADD
+productForm.addEventListener("submit",e=>{
   e.preventDefault();
-  const nameInput=document.getElementById("name");
-  const articleInput=document.getElementById("article");
-  const quantityInput=document.getElementById("quantity");
-  const locationInput=document.getElementById("location");
-  if(!nameInput.value || !articleInput.value || !quantityInput.value || !locationInput.value){ alert("Fyll i alla fält!"); return; }
-  const key=Date.now().toString();
-  products[key]={ 
-    name:nameInput.value,
-    article:articleInput.value,
-    quantity:parseInt(quantityInput.value),
-    location:locationInput.value,
-    picked:0,
-    comment:quantityInput.value>0?"Tillgänglig":"Slut"
+
+  const nameInput = document.getElementById("name");
+  const articleInput = document.getElementById("article");
+  const quantityInput = document.getElementById("quantity");
+  const locationInput = document.getElementById("location");
+
+  const key = Date.now();
+  products[key] = {
+    name: nameInput.value || "",
+    article: articleInput.value || "",
+    quantity: parseInt(quantityInput.value) || 0,
+    location: locationInput.value || "",
+    picked: 0,
+    comment: ""
   };
-  saveProducts(); render();
-  e.target.reset(); toggleForm();
+
+  save();
+  e.target.reset();
+
+  // Dölj formuläret efter lägg till
+  productForm.style.opacity = "0";
+  productForm.style.transform = "translateY(-10px)";
+  setTimeout(()=>{
+    productForm.classList.remove("show");
+    productForm.style.opacity = "";
+    productForm.style.transform = "";
+  }, 300);
 });
 
 document.getElementById("search").addEventListener("input",render);
 </script>
-
 </body>
 </html>

@@ -3,6 +3,8 @@
 <head>
 <meta charset="UTF-8">
 <title>Lagersaldo Firebase</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
 :root {
   --bg: #f4f6f8;
@@ -101,8 +103,7 @@ td {
 tr.out-of-stock { background: rgba(255,0,0,0.1); }
 
 .comment-box { cursor: text; padding: 5px; }
-
-.comment-input { width: 90%; padding: 5px; text-align: center; }
+.comment-input, .edit-input { width: 90%; padding: 5px; text-align: center; }
 
 button { padding: 6px; border: none; border-radius: 5px; cursor: pointer; }
 .pick-btn { background: #f59e0b; color: white; }
@@ -110,6 +111,7 @@ button { padding: 6px; border: none; border-radius: 5px; cursor: pointer; }
 .save-btn { background: #22c55e; color: white; }
 
 form.hidden { display: none; }
+.container.hidden { display: none; }
 </style>
 </head>
 
@@ -137,7 +139,7 @@ form.hidden { display: none; }
     <input type="text" id="article" placeholder="Artikelnummer" required>
     <input type="number" id="quantity" placeholder="Antal" required>
     <input type="text" id="location" placeholder="Lagerplats" required>
-    <button class="add-btn" type="submit">+ Lägg till</button>
+    <button type="submit">+ Lägg till</button>
   </form>
 
   <input type="text" id="search" placeholder="🔍 Sök...">
@@ -157,9 +159,6 @@ form.hidden { display: none; }
   </table>
 </div>
 
-<!-- FIREBASE -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <script>
 // ===== FIREBASE CONFIG =====
 const firebaseConfig = {
@@ -176,30 +175,29 @@ firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // ===== LOGIN =====
-const USER="swapos301", PASS="ost";
+const USER = "swapos301";
+const PASS = "ost";
+
 function login(){
   const u = document.getElementById("login-username").value;
   const p = document.getElementById("login-password").value;
   if(u===USER && p===PASS){
     document.getElementById("login-container").classList.add("hidden");
     document.getElementById("app-container").classList.remove("hidden");
-    loadProducts();
+    loadProducts();  // Ladda Firebase-data först efter login
   } else alert("Fel användarnamn eller lösenord");
 }
 
 // ===== THEME =====
 function toggleTheme(){ document.body.classList.toggle("dark"); }
-(function(){ if(localStorage.getItem("theme")==="dark") document.body.classList.add("dark"); })();
+
+// ===== FORM TOGGLE =====
 function toggleForm(){ document.getElementById("productForm").classList.toggle("hidden"); }
 
 // ===== PRODUCTS =====
 let products = {};
-let editingKey = null;
+let editingIndex = null;
 
-const list = document.getElementById("productList");
-const searchInput = document.getElementById("search");
-
-// Ladda produkter från Firebase
 function loadProducts(){
   db.ref("products").on("value", snapshot=>{
     products = snapshot.val() || {};
@@ -207,26 +205,27 @@ function loadProducts(){
   });
 }
 
-function saveProducts(){
-  db.ref("products").set(products);
-}
+function saveProducts(){ db.ref("products").set(products); }
 
-// RENDER
+// ===== RENDER =====
 function render(){
-  const search = searchInput.value.toLowerCase();
-  list.innerHTML="";
+  const list = document.getElementById("productList");
+  const search = document.getElementById("search").value.toLowerCase();
+  list.innerHTML = "";
+
   Object.keys(products).forEach(key=>{
     const p = products[key];
     if(!p.comment) p.comment="";
     if(!p.picked) p.picked=0;
 
-    if((p.name && p.name.toLowerCase().includes(search)) ||
-       (p.article && p.article.toLowerCase().includes(search)) ||
-       (p.location && p.location.toLowerCase().includes(search))){
+    if(
+      (p.name && p.name.toLowerCase().includes(search)) ||
+      (p.article && p.article.toLowerCase().includes(search)) ||
+      (p.location && p.location.toLowerCase().includes(search))
+    ){
       const row = document.createElement("tr");
       if(p.quantity===0) row.classList.add("out-of-stock");
-
-      row.innerHTML=`
+      row.innerHTML = `
         <td>${p.name}</td>
         <td>${p.article}</td>
         <td>${p.quantity}</td>
@@ -234,8 +233,8 @@ function render(){
         <td><div class="comment-box" onclick="editComment('${key}')">${p.comment||'➕'}</div></td>
         <td>
           <button onclick="editProduct('${key}')">✏️</button>
-          <button class="pick-btn" onclick="pickOne('${key}')">Plocka</button>
-          <button class="delete-btn" onclick="deleteProduct('${key}')">X</button>
+          <button onclick="pickOne('${key}')">Plocka</button>
+          <button onclick="deleteProduct('${key}')">X</button>
         </td>
       `;
       list.appendChild(row);
@@ -244,67 +243,63 @@ function render(){
 }
 
 // ===== ACTIONS =====
-function pickOne(key){ if(products[key].quantity>0){ products[key].quantity--; products[key].picked++; saveProducts(); render(); } }
+function pickOne(key){
+  if(products[key].quantity>0){ products[key].quantity--; products[key].picked++; saveProducts(); render(); }
+}
 
 function editComment(key){
-  const cell = list.querySelector(`div[onclick="editComment('${key}')"]`);
-  cell.innerHTML=`<input class="comment-input" id="c-${key}" value="${products[key].comment}">`;
-  const input=document.getElementById(`c-${key}`);
+  const cell = document.querySelector(`div[onclick="editComment('${key}')"]`);
+  cell.innerHTML = `<input class="comment-input" id="c-${key}" value="${products[key].comment}">`;
+  const input = document.getElementById(`c-${key}`);
   input.focus();
-  input.addEventListener("blur",()=>{ products[key].comment=input.value; saveProducts(); render(); });
+  input.addEventListener("blur", ()=>{
+    products[key].comment = input.value;
+    saveProducts(); render();
+  });
 }
 
 function editProduct(key){
   const p = products[key];
-  editingKey=key;
-  document.getElementById("productForm").classList.remove("hidden");
-  document.getElementById("name").value = p.name;
-  document.getElementById("article").value = p.article;
-  document.getElementById("quantity").value = p.quantity;
-  document.getElementById("location").value = p.location;
-  document.querySelector("#productForm button").textContent = "💾 Spara";
+  const newName = prompt("Ändra namn", p.name);
+  if(newName) p.name = newName;
+  saveProducts(); render();
 }
 
-function deleteProduct(key){ delete products[key]; saveProducts(); render(); }
+function deleteProduct(key){
+  delete products[key]; saveProducts(); render();
+}
 
-// ===== ADD / SAVE PRODUCT =====
+// ===== ADD PRODUCT =====
 document.getElementById("productForm").addEventListener("submit", e=>{
   e.preventDefault();
-  const nameInput=document.getElementById("name");
-  const articleInput=document.getElementById("article");
-  const quantityInput=document.getElementById("quantity");
-  const locationInput=document.getElementById("location");
+  const nameInput = document.getElementById("name");
+  const articleInput = document.getElementById("article");
+  const quantityInput = document.getElementById("quantity");
+  const locationInput = document.getElementById("location");
 
   if(!nameInput.value || !articleInput.value || !quantityInput.value || !locationInput.value){
-    alert("Fyll i alla fält!"); return;
+    alert("Fyll i alla fält!");
+    return;
   }
 
-  if(editingKey){
-    products[editingKey].name=nameInput.value;
-    products[editingKey].article=articleInput.value;
-    products[editingKey].quantity=parseInt(quantityInput.value);
-    products[editingKey].location=locationInput.value;
-    editingKey=null;
-  } else {
-    const key=Date.now().toString();
-    products[key]={
-      name:nameInput.value,
-      article:articleInput.value,
-      quantity:parseInt(quantityInput.value),
-      location:locationInput.value,
-      picked:0,
-      comment:""
-    };
-  }
+  const key = Date.now().toString();
+  products[key] = {
+    name: nameInput.value,
+    article: articleInput.value,
+    quantity: parseInt(quantityInput.value),
+    location: locationInput.value,
+    picked:0,
+    comment:""
+  };
 
   saveProducts();
   render();
   e.target.reset();
-  document.getElementById("productForm").classList.add("hidden");
-  document.querySelector("#productForm button").textContent = "+ Lägg till";
+  toggleForm();
 });
 
-searchInput.addEventListener("input", render);
+// SEARCH
+document.getElementById("search").addEventListener("input", render);
 
 </script>
 </body>

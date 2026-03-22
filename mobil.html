@@ -11,115 +11,45 @@
 
 <style>
 * { box-sizing: border-box; }
-
 :root {
-  --bg:#f4f6f8;
-  --card:#fff;
-  --text:#1e293b;
-  --accent:#008724;
-  --border:#e5e7eb;
+  --bg:#f4f6f8; --card:#fff; --text:#1e293b; --accent:#008724; --border:#e5e7eb;
 }
-
-body.dark {
-  --bg:#0f172a;
-  --card:rgba(255,255,255,0.05);
-  --text:#fff;
-  --border:rgba(255,255,255,0.1);
-}
-
-body {
-  margin:0;
-  font-family:"Segoe UI";
-  background:var(--bg);
-  color:var(--text);
-}
-
+body.dark { --bg:#0f172a; --card:rgba(255,255,255,0.05); --text:#fff; --border:rgba(255,255,255,0.1);}
+body { margin:0; font-family:"Segoe UI"; background:var(--bg); color:var(--text);}
 .container { padding:12px; max-width:600px; margin:auto; }
 h2 { text-align:center; }
-
-/* BUTTON */
-button {
-  padding:12px;
-  border:none;
-  border-radius:10px;
-  font-size:16px;
-  width:100%;
-  margin:5px 0;
-}
-
-/* INPUT */
-input {
-  width:100%;
-  padding:10px;
-  border-radius:8px;
-  border:1px solid var(--border);
-  margin-bottom:8px;
-  font-size:16px;
-}
+button { padding:12px; border:none; border-radius:10px; font-size:16px; width:100%; margin:5px 0; }
+input { width:100%; padding:10px; border-radius:8px; border:1px solid var(--border); margin-bottom:8px; font-size:16px; }
 input::placeholder { opacity:0.6; }
-
-/* CARD */
-.card {
-  background:var(--card);
-  border-radius:12px;
-  padding:12px;
-  margin-bottom:12px;
-  box-shadow:0 2px 5px rgba(0,0,0,0.1);
-}
-.card.out { background:rgba(255,0,0,0.1); }
+.card { background:var(--card); border-radius:12px; padding:12px; margin-bottom:12px; box-shadow:0 2px 5px rgba(0,0,0,0.1);}
+.card.out { background:rgba(255,0,0,0.1);}
 .small { font-size:13px; opacity:0.7; }
-
-/* META */
 .meta { display:flex; justify-content:space-between; margin-top:6px; }
-.status-ok { color:#22c55e; font-weight:bold; }
-.status-out { color:#ef4444; font-weight:bold; }
-
-/* LOGIN */
-#login-container {
-  display:flex; flex-direction:column; justify-content:center; align-items:center;
-  height:100vh; padding:20px;
-}
-
+.status-ok { color:#22c55e; font-weight:bold;}
+.status-out { color:#ef4444; font-weight:bold;}
+#login-container { display:flex; flex-direction:column; justify-content:center; align-items:center; height:100vh; padding:20px;}
 #productForm { display:none; }
 #productForm.show { display:block; }
-
 .actions { display:flex; gap:5px; margin-top:8px; }
 .actions button { flex:1; }
-.pick-btn { background:#f59e0b; color:#fff; }
-.delete-btn { background:#ef4444; color:#fff; }
-
-/* CAMERA INPUT */
-.camera-wrapper {
-  display:flex;
-  align-items:center;
-  gap:5px;
-}
+.pick-btn { background:#f59e0b; color:#fff;}
+.delete-btn { background:#ef4444; color:#fff;}
+.camera-wrapper { display:flex; align-items:center; gap:5px; }
 .camera-wrapper input { flex:1; }
-.camera-wrapper button {
-  flex:none;
-  padding:10px 12px;
-  margin-top:0;
-  margin-bottom:8px;
-  width:10%;
-}
+.camera-wrapper button { flex:none; padding:10px 12px; margin-top:0; margin-bottom:8px; width:10%; }
 
 /* CAMERA OVERLAY */
 #cameraOverlay {
   display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
+  position:fixed; top:0; left:0; width:100%; height:100%;
   background:rgba(0,0,0,0.7);
-  justify-content:center;
-  align-items:center;
-  flex-direction:column;
+  justify-content:center; align-items:center; flex-direction:column;
   z-index:9999;
 }
-#cameraOverlay #reader { width:90%; max-width:400px; border-radius:8px; }
+#cameraOverlay #reader { width:90%; max-width:400px; border-radius:8px; background:#000; }
 #cameraOverlay button { margin-top:12px; padding:10px 16px; border:none; border-radius:8px; background:#ef4444; color:white; font-size:16px; }
 </style>
 </head>
-
 <body>
 
 <!-- LOGIN -->
@@ -133,18 +63,15 @@ input::placeholder { opacity:0.6; }
 <!-- APP -->
 <div class="container" id="app-container" style="display:none;">
   <h2>📦 Lagersaldo</h2>
-
   <button onclick="toggleTheme()">🌙 Dark Mode</button>
   <button id="toggleFormBtn">➕ Ny produkt</button>
 
   <form id="productForm">
     <input id="nameInput" placeholder="Produktnamn" required>
-
     <div class="camera-wrapper">
       <input id="articleInput" placeholder="Artikelnummer" required>
       <button type="button" onclick="startScan('articleInput')">📷</button>
     </div>
-
     <input id="quantityInput" type="number" placeholder="Antal" required>
     <input id="locationInput" placeholder="Lagerplats" required>
     <button type="submit">+ Lägg till</button>
@@ -204,7 +131,6 @@ function render(){
   const list=document.getElementById("productList");
   const search=document.getElementById("search").value.toLowerCase();
   list.innerHTML="";
-
   sortedKeys().forEach(key=>{
     const p=products[key];
     if(!(p.name||"").toLowerCase().includes(search) &&
@@ -251,8 +177,7 @@ productForm.addEventListener("submit",e=>{
     article:document.getElementById("articleInput").value, 
     quantity:parseInt(document.getElementById("quantityInput").value)||0, 
     location:document.getElementById("locationInput").value, 
-    picked:0, 
-    comment:"" 
+    picked:0, comment:"" 
   };
   save(); e.target.reset(); productForm.classList.remove("show");
 });
@@ -267,20 +192,23 @@ function startScan(inputId){
   const overlay = document.getElementById("cameraOverlay");
   overlay.style.display = "flex";
 
-  html5QrCodeInstance = new Html5Qrcode("reader");
-  Html5Qrcode.getCameras().then(cameras=>{
-    if(cameras && cameras.length){
-      html5QrCodeInstance.start(
-        { facingMode:"environment" },
-        { fps:10, qrbox:250 },
-        qrCodeMessage=>{
-          if(currentInput) currentInput.value = qrCodeMessage;
-          stopScan();
-        },
-        errorMessage=>{}
-      );
-    }
-  }).catch(err=>alert(err));
+  // Vänta en liten stund så overlay är synlig innan kameran startar
+  setTimeout(()=>{
+    Html5Qrcode.getCameras().then(cameras=>{
+      if(cameras && cameras.length){
+        html5QrCodeInstance = new Html5Qrcode("reader");
+        html5QrCodeInstance.start(
+          { facingMode:"environment" },
+          { fps:10, qrbox:250 },
+          qrCodeMessage=>{
+            if(currentInput) currentInput.value = qrCodeMessage;
+            stopScan();
+          },
+          errorMessage=>{}
+        ).catch(err=>{ console.error("Kamera startfel:", err); alert("Kunde inte starta kameran: "+err); });
+      } else alert("Ingen kamera hittades");
+    }).catch(err=>{ console.error("getCameras fel:", err); alert("Fel vid kamerainit: "+err); });
+  }, 300); // liten timeout
 }
 
 function stopScan(){

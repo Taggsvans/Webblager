@@ -38,7 +38,7 @@ body {
   background:var(--card);
   padding:25px;
   border-radius:12px;
-  position:relative; /* 👈 lägg till denna */
+  position:relative;
 }
 
 table{
@@ -127,7 +127,7 @@ button{
 
 /* FORMULÄR */
 #productForm {
-  display: none; /* dolt som default */
+  display: none;
   flex-wrap: wrap;
   gap: 10px;
   margin-top: 15px;
@@ -224,21 +224,31 @@ body.dark td div {
 
 .soptunna{
     background: transparent !important;
-  color: inherit !important;
+    color: inherit !important;
 }
 
+/* SKÖLDPADDA ANIMATION */
 .mobile-link {
-  position:absolute;
-  right:25px;
-  top:175px;
-  font-size:24px;
-  text-decoration:none;
+  position: absolute;
+  top: 175px;
+  left: 95%;       /* start utanför skärmen */
+  font-size: 24px;
+  text-decoration: none;
+  z-index: 1000;
+}
+
+.mobile-link.animate {
+  animation: turtle-move 5s linear forwards; /* justera tiden efter behov */
+}
+
+@keyframes turtle-move {
+  0% { left: 95%; }
+  100% { left: 2%; }
 }
 
 .mobile-link:hover {
-  transform: scale(1.2);
+  animation-play-state: paused;
 }
-
 </style>
 </head>
 
@@ -252,8 +262,10 @@ body.dark td div {
 </div>
 
 <div class="container" id="app-container" style="display:none;">
-<h2>📦 Lagersaldo</h2>
-<a href="mobil.html" class="mobile-link">🐢</a>
+<h2>  <span id="startTurtle" style="cursor:pointer; font-size:24px;">📦</span>Lagersaldo
+  <a href="mobil.html" class="mobile-link" title="Mobilversion">🐢</a>
+</h2>
+
 <div style="margin-bottom:10px;">
   <button onclick="toggleTheme()">🌙 Dark Mode</button>
   <button id="toggleFormBtn">➕ Ny produkt</button>
@@ -297,7 +309,7 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
-// DARK MODE: Läs localStorage
+// DARK MODE
 if(localStorage.getItem("darkMode") === "true"){
   document.body.classList.add("dark");
 }
@@ -344,6 +356,17 @@ toggleBtn.addEventListener("click", () => {
       productForm.style.transform = "";
     }, 300);
   }
+});
+
+// SKÖLDPADDA ANIMATION TRIGGER
+const turtle = document.querySelector('.mobile-link');
+const startBtn = document.getElementById('startTurtle');
+
+startBtn.addEventListener('click', () => {
+  // ta bort klassen om den redan finns för att kunna starta om animationen
+  turtle.classList.remove('animate'); 
+  void turtle.offsetWidth; // tvinga omstart av animationen
+  turtle.classList.add('animate');
 });
 
 // DATA

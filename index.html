@@ -38,12 +38,14 @@ body {
   background:var(--card);
   padding:25px;
   border-radius:12px;
+  position:relative; /* 👈 lägg till denna */
 }
 
 table{
   width:100%;
   border-collapse:collapse;
   text-align:center;
+  table-layout:fixed;
 }
 
 th{
@@ -55,6 +57,7 @@ th{
 td{
   padding:7px;
   border-bottom:1px solid var(--border);
+  font-size:15px;
 }
 
 td input{
@@ -223,6 +226,19 @@ body.dark td div {
     background: transparent !important;
   color: inherit !important;
 }
+
+.mobile-link {
+  position:absolute;
+  right:25px;
+  top:175px;
+  font-size:24px;
+  text-decoration:none;
+}
+
+.mobile-link:hover {
+  transform: scale(1.2);
+}
+
 </style>
 </head>
 
@@ -237,7 +253,7 @@ body.dark td div {
 
 <div class="container" id="app-container" style="display:none;">
 <h2>📦 Lagersaldo</h2>
-
+<a href="mobil.html" class="mobile-link">🐢</a>
 <div style="margin-bottom:10px;">
   <button onclick="toggleTheme()">🌙 Dark Mode</button>
   <button id="toggleFormBtn">➕ Ny produkt</button>

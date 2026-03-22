@@ -2,7 +2,6 @@
 <html lang="sv">
 <head>
 <meta charset="UTF-8">
-<link rel="icon" type="image/png" href="favicon.png">
 <title>Lagersaldo</title>
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -129,7 +128,7 @@ button{
   display: none; /* dolt som default */
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 15px; /* ✅ sänkt från knapparna */
+  margin-top: 15px;
   margin-bottom: 15px;
   opacity: 0;
   transform: translateY(-10px);
@@ -166,23 +165,19 @@ button{
   background: #00691c;
 }
 
-.soptunna{
-  background: transparent !important;
-  color: inherit !important;
-}
-
+/* LOGIN */
 #login-container {
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
-  min-height: 80vh; /* centrerar vertikalt */
-  gap: 15px; /* mellanrum mellan elementen */
+  min-height: 80vh;
+  gap: 15px;
   text-align: center;
 }
 
 #login-container h2 {
-  font-size: 2rem; /* större rubrik */
+  font-size: 2rem;
   margin-bottom: 20px;
 }
 
@@ -190,7 +185,7 @@ button{
   width: 250px;
   max-width: 90%;
   padding: 12px 15px;
-  font-size: 1.1rem; /* större text i fälten */
+  font-size: 1.1rem;
   border-radius: 8px;
   border: 1px solid var(--border);
   margin-bottom: 10px;
@@ -211,6 +206,24 @@ button{
 #login-container button:hover {
   background: #00691c;
 }
+
+/* KOMMENTAR DARK MODE FIX */
+td div {
+  min-height: 20px;
+  cursor: text;
+  padding: 2px;
+  transition: background 0.2s, color 0.2s;
+}
+
+body.dark td div {
+  background: rgba(255,255,255,0.05);
+  color: var(--text);
+}
+
+.soptunna{
+    background: transparent !important;
+  color: inherit !important;
+}
 </style>
 </head>
 
@@ -229,6 +242,7 @@ button{
 <div style="margin-bottom:10px;">
   <button onclick="toggleTheme()">🌙 Dark Mode</button>
   <button id="toggleFormBtn">➕ Ny produkt</button>
+  <button id="exportBtn">💾 Exportera lager som JSON</button>
 </div>
 
 <form id="productForm">
@@ -268,6 +282,11 @@ const firebaseConfig = {
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
+// DARK MODE: Läs localStorage
+if(localStorage.getItem("darkMode") === "true"){
+  document.body.classList.add("dark");
+}
+
 // LOGIN
 function login(){
   const u=document.getElementById("login-username").value;
@@ -285,11 +304,13 @@ function showApp(){
   loadProducts();
 }
 
-// AUTO LOGIN IF ALREADY LOGGED IN
 if(localStorage.getItem("loggedIn")==="true") showApp();
 
 // UI
-function toggleTheme(){document.body.classList.toggle("dark");}
+function toggleTheme(){
+  document.body.classList.toggle("dark");
+  localStorage.setItem("darkMode", document.body.classList.contains("dark") ? "true" : "false");
+}
 
 // FORM TOGGLE
 const toggleBtn = document.getElementById("toggleFormBtn");
@@ -363,13 +384,13 @@ function render(){
   ${
     activeComment===key
     ? `<input class="neon" style="width:100%" id="c-${key}" value="${p.comment||""}" onblur="saveComment('${key}')">`
-    : `<div onclick="openComment('${key}')" style="min-height:20px; cursor:text; background:#f0f0f0; padding:2px;">${p.comment||""}</div>`
+    : `<div onclick="openComment('${key}')">${p.comment||""}</div>`
   }
 </td>
 <td>
   ${
     editing
-    ? `<button class="save-btn" onclick="saveEdit('${key}')">Uppdatera</button>`
+    ? `<button class="save-btn" onclick="saveEdit('${key}')">✔</button>`
     : `
       <button onclick="edit('${key}')">✏️</button>
       <button class="pick-btn" onclick="pick('${key}')">Plocka</button>
@@ -454,7 +475,6 @@ productForm.addEventListener("submit",e=>{
   save();
   e.target.reset();
 
-  // Dölj formuläret efter lägg till
   productForm.style.opacity = "0";
   productForm.style.transform = "translateY(-10px)";
   setTimeout(()=>{
@@ -462,6 +482,20 @@ productForm.addEventListener("submit",e=>{
     productForm.style.opacity = "";
     productForm.style.transform = "";
   }, 300);
+});
+
+// EXPORT BUTTON
+document.getElementById("exportBtn").addEventListener("click", () => {
+  const dataStr = JSON.stringify(products, null, 2);
+  const blob = new Blob([dataStr], {type: "application/json"});
+  const url = URL.createObjectURL(blob);
+
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `lager_export_${Date.now()}.json`;
+  a.click();
+
+  URL.revokeObjectURL(url);
 });
 
 document.getElementById("search").addEventListener("input",render);

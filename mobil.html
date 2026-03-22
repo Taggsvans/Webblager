@@ -7,6 +7,7 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
 <style>
 * { box-sizing: border-box; }
@@ -33,12 +34,7 @@ body {
   color:var(--text);
 }
 
-.container {
-  padding:12px;
-  max-width:600px;
-  margin:auto;
-}
-
+.container { padding:12px; max-width:600px; margin:auto; }
 h2 { text-align:center; }
 
 /* BUTTON */
@@ -60,10 +56,7 @@ input {
   margin-bottom:8px;
   font-size:16px;
 }
-
-input::placeholder {
-  opacity:0.6;
-}
+input::placeholder { opacity:0.6; }
 
 /* CARD */
 .card {
@@ -73,65 +66,27 @@ input::placeholder {
   margin-bottom:12px;
   box-shadow:0 2px 5px rgba(0,0,0,0.1);
 }
+.card.out { background:rgba(255,0,0,0.1); }
+.small { font-size:13px; opacity:0.7; }
 
-.card.out {
-  background:rgba(255,0,0,0.1);
-}
-
-.small {
-  font-size:13px;
-  opacity:0.7;
-}
-
-/* META (plockat + status) */
-.meta {
-  display:flex;
-  justify-content:space-between;
-  margin-top:6px;
-}
-
-.status-ok {
-  color:#22c55e;
-  font-weight:bold;
-}
-
-.status-out {
-  color:#ef4444;
-  font-weight:bold;
-}
+/* META */
+.meta { display:flex; justify-content:space-between; margin-top:6px; }
+.status-ok { color:#22c55e; font-weight:bold; }
+.status-out { color:#ef4444; font-weight:bold; }
 
 /* LOGIN */
 #login-container {
-  display:flex;
-  flex-direction:column;
-  justify-content:center;
-  align-items:center;
-  height:100vh;
-  padding:20px;
+  display:flex; flex-direction:column; justify-content:center; align-items:center;
+  height:100vh; padding:20px;
 }
 
 #productForm { display:none; }
 #productForm.show { display:block; }
 
-.actions {
-  display:flex;
-  gap:5px;
-  margin-top:8px;
-}
-
-.actions button {
-  flex:1;
-}
-
-.pick-btn {
-  background:#f59e0b;
-  color:#fff;
-}
-
-.delete-btn {
-  background:#ef4444;
-  color:#fff;
-}
+.actions { display:flex; gap:5px; margin-top:8px; }
+.actions button { flex:1; }
+.pick-btn { background:#f59e0b; color:#fff; }
+.delete-btn { background:#ef4444; color:#fff; }
 
 /* CAMERA INPUT */
 .camera-wrapper {
@@ -139,26 +94,22 @@ input::placeholder {
   align-items:center;
   gap:5px;
 }
-
-.camera-wrapper input {
-  flex:1;
-}
-
+.camera-wrapper input { flex:1; }
 .camera-wrapper button {
-    flex: none;
-    padding: 10px 12px;
-    margin-top: 0px;
-    margin-bottom: 8px;
-    width: 10%;
+  flex:none;
+  padding:10px 12px;
+  margin-top:0;
+  margin-bottom:8px;
+  width:10%;
 }
 
-#videoPreview {
+/* CAMERA PREVIEW */
+#readerContainer {
   display:none;
-  width:100%;
-  border:1px solid var(--border);
-  border-radius:8px;
   margin-top:8px;
 }
+#reader { width:100%; }
+#cancelScanBtn { padding:8px 12px; margin-top:4px; border-radius:8px; background:#ef4444; color:white; border:none; }
 </style>
 </head>
 
@@ -186,10 +137,12 @@ input::placeholder {
     <div class="camera-wrapper">
       <input id="articleInput" placeholder="Artikelnummer" required>
       <button type="button" id="scanBtn">📷</button>
-      <button type="button" id="cancelScanBtn" style="display:none;">❌</button>
     </div>
 
-    <video id="videoPreview"></video>
+    <div id="readerContainer">
+      <div id="reader"></div>
+      <button id="cancelScanBtn" type="button">❌ Avbryt</button>
+    </div>
 
     <input id="quantityInput" type="number" placeholder="Antal" required>
     <input id="locationInput" placeholder="Lagerplats" required>
@@ -257,24 +210,19 @@ function render(){
 
     card.innerHTML=`
       <input placeholder="Produktnamn" value="${p.name||""}" onblur="update('${key}','name',this.value)">
-      
-      <!-- Artikelnummer med kamera för varje produkt -->
       <div class="camera-wrapper">
         <input placeholder="Artikelnummer" value="${p.article||""}" id="articleInput-${key}">
         <button type="button" onclick="scanBarcode('articleInput-${key}')">📷</button>
       </div>
-      
       <input placeholder="Antal" type="number" value="${p.quantity}" onblur="update('${key}','quantity',this.value)">
       <input placeholder="Lagerplats" value="${p.location||""}" onblur="update('${key}','location',this.value)">
       <input placeholder="Kommentar" value="${p.comment||""}" onblur="update('${key}','comment',this.value)">
-
       <div class="meta small">
         <div>Plockat: ${p.picked||0}</div>
         <div class="${p.quantity>0?'status-ok':'status-out'}">
           ${p.quantity>0?'Tillgänglig':'Slut'}
         </div>
       </div>
-
       <div class="actions">
         <button class="pick-btn" onclick="pick('${key}')">Plocka</button>
         <button class="delete-btn" onclick="del('${key}')">X</button>
@@ -297,44 +245,36 @@ productForm.addEventListener("submit",e=>{
 });
 document.getElementById("search").addEventListener("input",render);
 
-// CAMERA / BARCODE
-const scanBtn=document.getElementById("scanBtn");
-const cancelBtn=document.getElementById("cancelScanBtn");
-const video=document.getElementById("videoPreview");
-let stream;
+// CAMERA / BARCODE USING Html5Qrcode WITH CANCEL
+let html5QrCodeInstance;
+function scanBarcode(inputId){
+  const readerContainer = document.getElementById("readerContainer");
+  readerContainer.style.display = "block";
 
-async function scanBarcode(inputId){
-  if(!("BarcodeDetector" in window)){ alert("Din webbläsare stöder inte Barcode Detection API."); return; }
-
-  video.style.display="block";
-  cancelBtn.style.display="inline-block";
-  stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
-  video.srcObject=stream;
-  video.play();
-
-  const barcodeDetector=new BarcodeDetector({ formats:["code_128","ean_13","ean_8","qr_code"] });
-
-  const detectBarcode=async()=>{
-    if(!stream) return;
-    try{
-      const barcodes=await barcodeDetector.detect(video);
-      if(barcodes.length>0){
-        document.getElementById(inputId).value=barcodes[0].rawValue;
-        stopCamera();
-        return;
-      }
-      requestAnimationFrame(detectBarcode);
-    } catch(err){ console.error(err); stopCamera(); alert("Fel vid streckkodsläsning."); }
-  };
-  detectBarcode();
+  html5QrCodeInstance = new Html5Qrcode("reader");
+  Html5Qrcode.getCameras().then(cameras=>{
+    if(cameras && cameras.length){
+      html5QrCodeInstance.start(
+        { facingMode: "environment" },
+        { fps:10, qrbox:250 },
+        qrCodeMessage=>{
+          document.getElementById(inputId).value = qrCodeMessage;
+          stopScan();
+        },
+        errorMessage=>{}
+      );
+    }
+  }).catch(err=>alert(err));
 }
 
-scanBtn.addEventListener("click",()=>scanBarcode("articleInput"));
-cancelBtn.addEventListener("click",stopCamera);
+document.getElementById("cancelScanBtn").addEventListener("click", stopScan);
 
-function stopCamera(){
-  if(stream){ stream.getTracks().forEach(track=>track.stop()); stream=null; }
-  video.style.display="none"; cancelBtn.style.display="none";
+function stopScan(){
+  if(html5QrCodeInstance){
+    html5QrCodeInstance.stop().then(()=> html5QrCodeInstance.clear());
+    html5QrCodeInstance = null;
+  }
+  document.getElementById("readerContainer").style.display = "none";
 }
 </script>
 </body>

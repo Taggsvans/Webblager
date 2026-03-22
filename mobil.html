@@ -7,13 +7,10 @@
 
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
-<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
 
 <style>
 * { box-sizing: border-box; }
-:root {
-  --bg:#f4f6f8; --card:#fff; --text:#1e293b; --accent:#008724; --border:#e5e7eb;
-}
+:root { --bg:#f4f6f8; --card:#fff; --text:#1e293b; --accent:#008724; --border:#e5e7eb; }
 body.dark { --bg:#0f172a; --card:rgba(255,255,255,0.05); --text:#fff; --border:rgba(255,255,255,0.1);}
 body { margin:0; font-family:"Segoe UI"; background:var(--bg); color:var(--text);}
 .container { padding:12px; max-width:600px; margin:auto; }
@@ -36,7 +33,7 @@ input::placeholder { opacity:0.6; }
 .delete-btn { background:#ef4444; color:#fff;}
 .camera-wrapper { display:flex; align-items:center; gap:5px; }
 .camera-wrapper input { flex:1; }
-.camera-wrapper button { flex:none; padding:10px 12px; margin-top:0; margin-bottom:8px; width:10%; }
+.camera-wrapper button { flex:none; padding:10px 12px; margin-top:0; margin-bottom:8px; width:13%; }
 
 /* CAMERA OVERLAY */
 #cameraOverlay {
@@ -87,6 +84,9 @@ input::placeholder { opacity:0.6; }
   <button onclick="stopScan()">❌ Avbryt</button>
 </div>
 
+<!-- LOAD HTML5-QRCODE AT THE END -->
+<script src="https://unpkg.com/html5-qrcode@2.3.8/minified/html5-qrcode.min.js"></script>
+
 <script>
 // FIREBASE
 const firebaseConfig = { apiKey:"AIzaSy...", authDomain:"lagersystem-4f0e6.firebaseapp.com", databaseURL:"https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/" };
@@ -104,13 +104,11 @@ function login(){
   if(u==="swapos301" && p==="ost"){ localStorage.setItem("loggedIn","true"); showApp(); } 
   else alert("Fel login");
 }
-
 function showApp(){
   document.getElementById("login-container").style.display="none";
   document.getElementById("app-container").style.display="block";
   loadProducts();
 }
-
 if(localStorage.getItem("loggedIn")==="true") showApp();
 
 // FORM TOGGLE
@@ -192,7 +190,6 @@ function startScan(inputId){
   const overlay = document.getElementById("cameraOverlay");
   overlay.style.display = "flex";
 
-  // Vänta en liten stund så overlay är synlig innan kameran startar
   setTimeout(()=>{
     Html5Qrcode.getCameras().then(cameras=>{
       if(cameras && cameras.length){
@@ -208,7 +205,7 @@ function startScan(inputId){
         ).catch(err=>{ console.error("Kamera startfel:", err); alert("Kunde inte starta kameran: "+err); });
       } else alert("Ingen kamera hittades");
     }).catch(err=>{ console.error("getCameras fel:", err); alert("Fel vid kamerainit: "+err); });
-  }, 300); // liten timeout
+  }, 300);
 }
 
 function stopScan(){
@@ -220,5 +217,6 @@ function stopScan(){
   document.getElementById("cameraOverlay").style.display = "none";
 }
 </script>
+
 </body>
 </html>

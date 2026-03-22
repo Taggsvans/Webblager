@@ -132,6 +132,33 @@ input::placeholder {
   background:#ef4444;
   color:#fff;
 }
+
+/* CAMERA INPUT */
+.camera-wrapper {
+  display:flex;
+  align-items:center;
+  gap:5px;
+}
+
+.camera-wrapper input {
+  flex:1;
+}
+
+.camera-wrapper button {
+    flex: none;
+    padding: 10px 12px;
+    margin-top: 0px;
+    margin-bottom: 8px;
+    width: 10%;
+}
+
+#videoPreview {
+  display:none;
+  width:100%;
+  border:1px solid var(--border);
+  border-radius:8px;
+  margin-top:8px;
+}
 </style>
 </head>
 
@@ -154,46 +181,41 @@ input::placeholder {
 
   <form id="productForm">
     <input id="nameInput" placeholder="Produktnamn" required>
-    <input id="articleInput" placeholder="Artikelnummer" required>
+
+    <!-- Artikelnummer med kamera -->
+    <div class="camera-wrapper">
+      <input id="articleInput" placeholder="Artikelnummer" required>
+      <button type="button" id="scanBtn">📷</button>
+      <button type="button" id="cancelScanBtn" style="display:none;">❌</button>
+    </div>
+
+    <video id="videoPreview"></video>
+
     <input id="quantityInput" type="number" placeholder="Antal" required>
     <input id="locationInput" placeholder="Lagerplats" required>
     <button type="submit">+ Lägg till</button>
   </form>
 
   <input id="search" placeholder="🔍 Sök...">
-
   <div id="productList"></div>
 </div>
 
 <script>
 // FIREBASE
-const firebaseConfig = {
-  apiKey:"AIzaSy...",
-  authDomain:"lagersystem-4f0e6.firebaseapp.com",
-  databaseURL:"https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/"
-};
+const firebaseConfig = { apiKey:"AIzaSy...", authDomain:"lagersystem-4f0e6.firebaseapp.com", databaseURL:"https://lagersystem-4f0e6-default-rtdb.europe-west1.firebasedatabase.app/" };
 firebase.initializeApp(firebaseConfig);
 const db = firebase.database();
 
 // DARK MODE
-if(localStorage.getItem("darkMode") === "true"){
-  document.body.classList.add("dark");
-}
-
-function toggleTheme(){
-  document.body.classList.toggle("dark");
-  localStorage.setItem("darkMode", document.body.classList.contains("dark"));
-}
+if(localStorage.getItem("darkMode")==="true") document.body.classList.add("dark");
+function toggleTheme(){ document.body.classList.toggle("dark"); localStorage.setItem("darkMode", document.body.classList.contains("dark")); }
 
 // LOGIN
 function login(){
   const u=document.getElementById("login-username").value;
   const p=document.getElementById("login-password").value;
-
-  if(u==="swapos301" && p==="ost"){
-    localStorage.setItem("loggedIn","true");
-    showApp();
-  } else alert("Fel login");
+  if(u==="swapos301" && p==="ost"){ localStorage.setItem("loggedIn","true"); showApp(); } 
+  else alert("Fel login");
 }
 
 function showApp(){
@@ -205,36 +227,17 @@ function showApp(){
 if(localStorage.getItem("loggedIn")==="true") showApp();
 
 // FORM TOGGLE
-const toggleBtn = document.getElementById("toggleFormBtn");
-const productForm = document.getElementById("productForm");
-
-toggleBtn.onclick = () => {
-  productForm.classList.toggle("show");
-};
+const toggleBtn=document.getElementById("toggleFormBtn");
+const productForm=document.getElementById("productForm");
+toggleBtn.onclick=()=>{ productForm.classList.toggle("show"); };
 
 // DATA
 let products={};
-
 function loadProducts(){
-  db.ref("products").on("value", snap=>{
-    products=snap.val()||{};
-    render();
-  });
+  db.ref("products").on("value", snap=>{ products=snap.val()||{}; render(); });
 }
-
 function save(){ db.ref("products").set(products); }
-
-// SORTERING
-function sortedKeys(){
-  return Object.keys(products).sort((a,b)=>{
-    const locCompare = (products[a].location || "").trim()
-      .localeCompare((products[b].location || "").trim(), "sv");
-
-    if(locCompare !== 0) return locCompare;
-
-    return (products[a].name || "").localeCompare(products[b].name || "", "sv");
-  });
-}
+function sortedKeys(){ return Object.keys(products).sort((a,b)=>{ const locCompare=(products[a].location||"").trim().localeCompare((products[b].location||"").trim(),"sv"); if(locCompare!==0) return locCompare; return (products[a].name||"").localeCompare(products[b].name||"","sv"); }); }
 
 // RENDER
 function render(){
@@ -244,7 +247,6 @@ function render(){
 
   sortedKeys().forEach(key=>{
     const p=products[key];
-
     if(!(p.name||"").toLowerCase().includes(search) &&
        !(p.article||"").toLowerCase().includes(search) &&
        !(p.location||"").toLowerCase().includes(search)) return;
@@ -255,15 +257,21 @@ function render(){
 
     card.innerHTML=`
       <input placeholder="Produktnamn" value="${p.name||""}" onblur="update('${key}','name',this.value)">
-      <input placeholder="Artikelnummer" value="${p.article||""}" onblur="update('${key}','article',this.value)">
+      
+      <!-- Artikelnummer med kamera för varje produkt -->
+      <div class="camera-wrapper">
+        <input placeholder="Artikelnummer" value="${p.article||""}" id="articleInput-${key}">
+        <button type="button" onclick="scanBarcode('articleInput-${key}')">📷</button>
+      </div>
+      
       <input placeholder="Antal" type="number" value="${p.quantity}" onblur="update('${key}','quantity',this.value)">
       <input placeholder="Lagerplats" value="${p.location||""}" onblur="update('${key}','location',this.value)">
       <input placeholder="Kommentar" value="${p.comment||""}" onblur="update('${key}','comment',this.value)">
 
       <div class="meta small">
         <div>Plockat: ${p.picked||0}</div>
-        <div class="${p.quantity > 0 ? 'status-ok' : 'status-out'}">
-          ${p.quantity > 0 ? 'Tillgänglig' : 'Slut'}
+        <div class="${p.quantity>0?'status-ok':'status-out'}">
+          ${p.quantity>0?'Tillgänglig':'Slut'}
         </div>
       </div>
 
@@ -277,50 +285,57 @@ function render(){
   });
 }
 
-// UPDATE (AUTO SAVE)
-function update(key, field, value){
-  if(field==="quantity"){
-    value = parseInt(value)||0;
-  }
-  products[key][field]=value;
-  save();
-}
-
-// ACTIONS
-function pick(key){
-  if(products[key].quantity>0){
-    products[key].quantity--;
-    products[key].picked=(products[key].picked||0)+1;
-    save();
-  }
-}
-
-function del(key){
-  delete products[key];
-  save();
-}
-
-// ADD
+// UPDATE / ACTIONS / ADD
+function update(key, field, value){ if(field==="quantity"){ value=parseInt(value)||0; } products[key][field]=value; save(); }
+function pick(key){ if(products[key].quantity>0){ products[key].quantity--; products[key].picked=(products[key].picked||0)+1; save(); } }
+function del(key){ delete products[key]; save(); }
 productForm.addEventListener("submit",e=>{
   e.preventDefault();
-
   const key=Date.now();
-
-  products[key]={
-    name: document.getElementById("nameInput").value,
-    article: document.getElementById("articleInput").value,
-    quantity: parseInt(document.getElementById("quantityInput").value)||0,
-    location: document.getElementById("locationInput").value,
-    picked:0,
-    comment:""
-  };
-
-  save();
-  e.target.reset();
-  productForm.classList.remove("show");
+  products[key]={ name:document.getElementById("nameInput").value, article:document.getElementById("articleInput").value, quantity:parseInt(document.getElementById("quantityInput").value)||0, location:document.getElementById("locationInput").value, picked:0, comment:"" };
+  save(); e.target.reset(); productForm.classList.remove("show");
 });
-
 document.getElementById("search").addEventListener("input",render);
+
+// CAMERA / BARCODE
+const scanBtn=document.getElementById("scanBtn");
+const cancelBtn=document.getElementById("cancelScanBtn");
+const video=document.getElementById("videoPreview");
+let stream;
+
+async function scanBarcode(inputId){
+  if(!("BarcodeDetector" in window)){ alert("Din webbläsare stöder inte Barcode Detection API."); return; }
+
+  video.style.display="block";
+  cancelBtn.style.display="inline-block";
+  stream=await navigator.mediaDevices.getUserMedia({ video:{ facingMode:"environment" } });
+  video.srcObject=stream;
+  video.play();
+
+  const barcodeDetector=new BarcodeDetector({ formats:["code_128","ean_13","ean_8","qr_code"] });
+
+  const detectBarcode=async()=>{
+    if(!stream) return;
+    try{
+      const barcodes=await barcodeDetector.detect(video);
+      if(barcodes.length>0){
+        document.getElementById(inputId).value=barcodes[0].rawValue;
+        stopCamera();
+        return;
+      }
+      requestAnimationFrame(detectBarcode);
+    } catch(err){ console.error(err); stopCamera(); alert("Fel vid streckkodsläsning."); }
+  };
+  detectBarcode();
+}
+
+scanBtn.addEventListener("click",()=>scanBarcode("articleInput"));
+cancelBtn.addEventListener("click",stopCamera);
+
+function stopCamera(){
+  if(stream){ stream.getTracks().forEach(track=>track.stop()); stream=null; }
+  video.style.display="none"; cancelBtn.style.display="none";
+}
 </script>
 </body>
 </html>

@@ -44,7 +44,6 @@ table{
   width:100%;
   border-collapse:collapse;
   text-align:center;
-  table-layout:fixed;
 }
 
 th{
@@ -56,7 +55,6 @@ th{
 td{
   padding:7px;
   border-bottom:1px solid var(--border);
-  font-size:15px;
 }
 
 td input{
@@ -391,7 +389,7 @@ function render(){
 <td>
   ${
     editing
-    ? `<button class="save-btn" onclick="saveEdit('${key}')">Uppdatera</button>`
+    ? `<button class="save-btn" onclick="saveEdit('${key}')">✔</button>`
     : `
       <button onclick="edit('${key}')">✏️</button>
       <button class="pick-btn" onclick="pick('${key}')">Plocka</button>

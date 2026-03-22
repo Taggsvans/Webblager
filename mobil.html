@@ -103,13 +103,20 @@ input::placeholder { opacity:0.6; }
   width:10%;
 }
 
-/* CAMERA PREVIEW */
-#readerContainer {
+/* CAMERA OVERLAY */
+#cameraOverlay {
   display:none;
-  margin-top:8px;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.7);
+  justify-content:center;
+  align-items:center;
+  flex-direction:column;
+  z-index:9999;
 }
-#reader { width:100%; }
-#cancelScanBtn { padding:8px 12px; margin-top:4px; border-radius:8px; background:#ef4444; color:white; border:none; }
+#cameraOverlay #reader { width:90%; max-width:400px; border-radius:8px; }
+#cameraOverlay button { margin-top:12px; padding:10px 16px; border:none; border-radius:8px; background:#ef4444; color:white; font-size:16px; }
 </style>
 </head>
 
@@ -133,15 +140,9 @@ input::placeholder { opacity:0.6; }
   <form id="productForm">
     <input id="nameInput" placeholder="Produktnamn" required>
 
-    <!-- Artikelnummer med kamera -->
     <div class="camera-wrapper">
       <input id="articleInput" placeholder="Artikelnummer" required>
-      <button type="button" id="scanBtn">📷</button>
-    </div>
-
-    <div id="readerContainer">
-      <div id="reader"></div>
-      <button id="cancelScanBtn" type="button">❌ Avbryt</button>
+      <button type="button" onclick="startScan('articleInput')">📷</button>
     </div>
 
     <input id="quantityInput" type="number" placeholder="Antal" required>
@@ -151,6 +152,12 @@ input::placeholder { opacity:0.6; }
 
   <input id="search" placeholder="🔍 Sök...">
   <div id="productList"></div>
+</div>
+
+<!-- CAMERA OVERLAY -->
+<div id="cameraOverlay">
+  <div id="reader"></div>
+  <button onclick="stopScan()">❌ Avbryt</button>
 </div>
 
 <script>
@@ -212,7 +219,7 @@ function render(){
       <input placeholder="Produktnamn" value="${p.name||""}" onblur="update('${key}','name',this.value)">
       <div class="camera-wrapper">
         <input placeholder="Artikelnummer" value="${p.article||""}" id="articleInput-${key}">
-        <button type="button" onclick="scanBarcode('articleInput-${key}')">📷</button>
+        <button type="button" onclick="startScan('articleInput-${key}')">📷</button>
       </div>
       <input placeholder="Antal" type="number" value="${p.quantity}" onblur="update('${key}','quantity',this.value)">
       <input placeholder="Lagerplats" value="${p.location||""}" onblur="update('${key}','location',this.value)">
@@ -228,7 +235,6 @@ function render(){
         <button class="delete-btn" onclick="del('${key}')">X</button>
       </div>
     `;
-
     list.appendChild(card);
   });
 }
@@ -240,25 +246,35 @@ function del(key){ delete products[key]; save(); }
 productForm.addEventListener("submit",e=>{
   e.preventDefault();
   const key=Date.now();
-  products[key]={ name:document.getElementById("nameInput").value, article:document.getElementById("articleInput").value, quantity:parseInt(document.getElementById("quantityInput").value)||0, location:document.getElementById("locationInput").value, picked:0, comment:"" };
+  products[key]={ 
+    name:document.getElementById("nameInput").value, 
+    article:document.getElementById("articleInput").value, 
+    quantity:parseInt(document.getElementById("quantityInput").value)||0, 
+    location:document.getElementById("locationInput").value, 
+    picked:0, 
+    comment:"" 
+  };
   save(); e.target.reset(); productForm.classList.remove("show");
 });
 document.getElementById("search").addEventListener("input",render);
 
-// CAMERA / BARCODE USING Html5Qrcode WITH CANCEL
-let html5QrCodeInstance;
-function scanBarcode(inputId){
-  const readerContainer = document.getElementById("readerContainer");
-  readerContainer.style.display = "block";
+// CAMERA SCAN
+let html5QrCodeInstance = null;
+let currentInput = null;
+
+function startScan(inputId){
+  currentInput = document.getElementById(inputId);
+  const overlay = document.getElementById("cameraOverlay");
+  overlay.style.display = "flex";
 
   html5QrCodeInstance = new Html5Qrcode("reader");
   Html5Qrcode.getCameras().then(cameras=>{
     if(cameras && cameras.length){
       html5QrCodeInstance.start(
-        { facingMode: "environment" },
+        { facingMode:"environment" },
         { fps:10, qrbox:250 },
         qrCodeMessage=>{
-          document.getElementById(inputId).value = qrCodeMessage;
+          if(currentInput) currentInput.value = qrCodeMessage;
           stopScan();
         },
         errorMessage=>{}
@@ -267,14 +283,13 @@ function scanBarcode(inputId){
   }).catch(err=>alert(err));
 }
 
-document.getElementById("cancelScanBtn").addEventListener("click", stopScan);
-
 function stopScan(){
   if(html5QrCodeInstance){
     html5QrCodeInstance.stop().then(()=> html5QrCodeInstance.clear());
     html5QrCodeInstance = null;
   }
-  document.getElementById("readerContainer").style.display = "none";
+  currentInput = null;
+  document.getElementById("cameraOverlay").style.display = "none";
 }
 </script>
 </body>

@@ -231,14 +231,14 @@ body.dark td div {
 .mobile-link {
   position: absolute;
   top: 175px;
-  left: 95%;       /* start utanför skärmen */
+  left: 95%;
   font-size: 24px;
   text-decoration: none;
   z-index: 1000;
 }
 
 .mobile-link.animate {
-  animation: turtle-move 5s linear forwards; /* justera tiden efter behov */
+  animation: turtle-move 5s linear forwards;
 }
 
 @keyframes turtle-move {
@@ -249,6 +249,55 @@ body.dark td div {
 .mobile-link:hover {
   animation-play-state: paused;
 }
+
+/* MODAL */
+.modal-overlay {
+  position: fixed;
+  top:0; left:0; right:0; bottom:0;
+  background: rgba(0,0,0,0.4);
+  display: none;
+  justify-content: center;
+  align-items: center;
+  z-index: 2000;
+}
+
+.modal {
+  background: var(--card);
+  padding: 20px 25px;
+  border-radius: 12px;
+  max-width: 300px;
+  width: 90%;
+  text-align: center;
+  box-shadow: 0 5px 15px rgba(0,0,0,0.3);
+}
+
+.modal p {
+  margin-bottom: 20px;
+  font-size: 16px;
+}
+
+.modal button {
+  margin: 0 8px;
+  padding: 8px 16px;
+  border: none;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+.modal .confirm-btn { background: #22c55e; color: #fff; }
+.modal .cancel-btn { background: #ef4444; color: #fff; }
+
+/* BILD KNAPP */
+.image-btn {
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  font-size: 18px;
+  margin-left: 5px;
+}
+.image-btn:hover { opacity: 0.7; }
+
 </style>
 </head>
 
@@ -297,6 +346,15 @@ body.dark td div {
 </thead>
 <tbody id="productList"></tbody>
 </table>
+</div>
+
+<!-- MODAL -->
+<div id="actionModal" class="modal-overlay">
+  <div class="modal">
+    <p id="modalText">Är du säker?</p>
+    <button id="modalConfirm" class="confirm-btn">Ja</button>
+    <button id="modalCancel" class="cancel-btn">Avbryt</button>
+  </div>
 </div>
 
 <script>
@@ -363,9 +421,8 @@ const turtle = document.querySelector('.mobile-link');
 const startBtn = document.getElementById('startTurtle');
 
 startBtn.addEventListener('click', () => {
-  // ta bort klassen om den redan finns för att kunna starta om animationen
   turtle.classList.remove('animate'); 
-  void turtle.offsetWidth; // tvinga omstart av animationen
+  void turtle.offsetWidth;
   turtle.classList.add('animate');
 });
 
@@ -382,11 +439,43 @@ function loadProducts(){
 function save(){ db.ref("products").set(products); }
 
 function sortedKeys(){
-  return Object.keys(products).sort((a,b)=>{
-    return (products[a].location||"").localeCompare(products[b].location||"");
+  return Object.keys(products).sort((a,b)=> (products[a].location||"").localeCompare(products[b].location||""));
+}
+
+// MODAL LOGIC
+let modalResolve = null;
+function showModal(text){
+  return new Promise((resolve)=>{
+    const overlay = document.getElementById("actionModal");
+    document.getElementById("modalText").innerText = text;
+
+    const confirmBtn = document.getElementById("modalConfirm");
+    const cancelBtn = document.getElementById("modalCancel");
+
+    overlay.style.display = "flex";
+
+    function cleanUp(){
+      overlay.style.display = "none";
+      confirmBtn.removeEventListener("click", onConfirm);
+      cancelBtn.removeEventListener("click", onCancel);
+    }
+
+    function onConfirm(){
+      cleanUp();
+      resolve(true);
+    }
+
+    function onCancel(){
+      cleanUp();
+      resolve(false);
+    }
+
+    confirmBtn.addEventListener("click", onConfirm);
+    cancelBtn.addEventListener("click", onCancel);
   });
 }
 
+// RENDER
 function render(){
   const list=document.getElementById("productList");
   const search=document.getElementById("search").value.toLowerCase();
@@ -395,20 +484,21 @@ function render(){
   sortedKeys().forEach(key=>{
     const p=products[key];
     if(!p.picked)p.picked=0;
-
     const status=p.quantity>0?"Tillgänglig":"Slut";
-
     if(!(p.name||"").toLowerCase().includes(search) &&
        !(p.article||"").toLowerCase().includes(search) &&
        !(p.location||"").toLowerCase().includes(search)) return;
-
     const editing = editingKey===key;
+    const hasImage = p.image && p.image.trim()!=="";
 
     const row=document.createElement("tr");
     if(p.quantity===0) row.classList.add("out-of-stock");
 
     row.innerHTML=`
-<td>${editing ? `<input class="neon" style="width:100%" id="n-${key}" value="${p.name}">` : p.name}</td>
+<td>
+  ${editing ? `<input class="neon" style="width:calc(100% - 25px)" id="n-${key}" value="${p.name}">` : p.name}
+  ${hasImage ? `<button class="image-btn" onclick="showProductImage('${key}')">📷</button>` : ''}
+</td>
 <td>${editing ? `<input class="neon" style="width:100%" id="a-${key}" value="${p.article}">` : p.article}</td>
 <td>${editing ? `<input class="neon" style="width:100%" id="q-${key}" type="number" value="${p.quantity}">` : p.quantity}</td>
 <td>${editing ? `<input class="neon" style="width:100%" id="l-${key}" value="${p.location}">` : p.location}</td>
@@ -428,7 +518,7 @@ function render(){
 <td>
   ${
     editing
-    ? `<button class="save-btn" onclick="saveEdit('${key}')">✔</button>`
+    ? `<button class="save-btn" onclick="saveEdit('${key}')">Uppdatera</button>`
     : `
       <button onclick="edit('${key}')">✏️</button>
       <button class="pick-btn" onclick="pick('${key}')">Plocka</button>
@@ -461,11 +551,13 @@ function saveEdit(key){
   render();
 }
 
-function pick(key){
-  if(products[key].quantity>0){
+async function pick(key){
+  const ok = await showModal("Är du säker på att du vill plocka den här produkten?");
+  if(ok && products[key].quantity>0){
     products[key].quantity--;
     products[key].picked++;
     save();
+    render();
   }
 }
 
@@ -474,9 +566,13 @@ function resetPicked(key){
   save();
 }
 
-function del(key){
-  delete products[key];
-  save();
+async function del(key){
+  const ok = await showModal("Är du säker på att du vill ta bort den här produkten?");
+  if(ok){
+    delete products[key];
+    save();
+    render();
+  }
 }
 
 function openComment(key){
@@ -489,6 +585,58 @@ function saveComment(key){
   products[key].comment=val;
   activeComment=null;
   save();
+}
+
+// SHOW IMAGE MODAL
+function showProductImage(key){
+  const p = products[key];
+  if(!p.image) return;
+
+  // Skapa modal-overlay
+  const imgModal = document.createElement("div");
+  imgModal.style.position="fixed";
+  imgModal.style.top="0";
+  imgModal.style.left="0";
+  imgModal.style.width="100%";
+  imgModal.style.height="100%";
+  imgModal.style.background="rgba(0,0,0,0.7)";
+  imgModal.style.display="flex";
+  imgModal.style.justifyContent="center";
+  imgModal.style.alignItems="center";
+  imgModal.style.zIndex=3000;
+
+  // Inre container
+  const inner = document.createElement("div");
+  inner.style.position="relative";
+  inner.style.background= "var(--card)";
+  inner.style.padding="15px";
+  inner.style.borderRadius="10px";
+  inner.style.textAlign = "center";
+
+  inner.innerHTML = `
+    <img src="${p.image}" style="max-width:90vw; max-height:70vh; display:block; margin-bottom:10px;">
+    <div>
+      <button style="margin-right:5px;" id="removeBtn">🗑️ Ta bort bild</button>
+      <button id="closeBtn">Stäng</button>
+    </div>
+  `;
+
+  imgModal.appendChild(inner);
+  document.body.appendChild(imgModal);
+
+  // Knappar
+  const removeBtn = inner.querySelector("#removeBtn");
+  const closeBtn = inner.querySelector("#closeBtn");
+
+  removeBtn.addEventListener("click", () => {
+    products[key].image = "";
+    save();
+    imgModal.remove(); // ta bort hela modal-overlay
+  });
+
+  closeBtn.addEventListener("click", () => {
+    imgModal.remove(); // ta bort hela modal-overlay
+  });
 }
 
 // ADD
@@ -507,7 +655,8 @@ productForm.addEventListener("submit",e=>{
     quantity: parseInt(quantityInput.value) || 0,
     location: locationInput.value || "",
     picked: 0,
-    comment: ""
+    comment: "",
+    image: "" // ingen bild på pc
   };
 
   save();

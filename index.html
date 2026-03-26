@@ -258,7 +258,7 @@ body.dark td div {
   display: none;
   justify-content: center;
   align-items: center;
-  z-index: 2000;
+  z-index: 4000;
 }
 
 .modal {
@@ -628,11 +628,14 @@ function showProductImage(key){
   const removeBtn = inner.querySelector("#removeBtn");
   const closeBtn = inner.querySelector("#closeBtn");
 
-  removeBtn.addEventListener("click", () => {
+ removeBtn.addEventListener("click", async () => {
+  const ok = await showModal("Är du säker på att du vill ta bort bilden?");
+  if(ok){
     products[key].image = "";
     save();
     imgModal.remove(); // ta bort hela modal-overlay
-  });
+  }
+});
 
   closeBtn.addEventListener("click", () => {
     imgModal.remove(); // ta bort hela modal-overlay

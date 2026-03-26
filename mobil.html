@@ -77,7 +77,6 @@ input {
 
 .meta div:first-child {
   cursor:pointer;
-  text-decoration: underline;
 }
 
 .status-ok { color:#22c55e; font-weight:bold; }
@@ -349,6 +348,7 @@ function pick(key){
       products[key].quantity--;
       products[key].picked=(products[key].picked||0)+1;
       save();
+      closeModal(); // 👈
     }
   });
 }
@@ -357,6 +357,7 @@ function del(key){
   showConfirm("Radera produkten?",()=>{
     delete products[key];
     save();
+    closeModal(); // 👈 stäng rutan efter radering
   });
 }
 
@@ -375,21 +376,30 @@ function editPicked(key){
 
 // IMAGE VIEW
 function showImage(key){
-  const img=products[key].image;
+  const img = products[key].image;
 
-  confirmText.innerHTML=`
-    <img src="${img}" style="width:100%; border-radius:10px;">
-    <div></div>
-  `;
+  confirmText.innerHTML = `<img src="${img}" style="width:100%; border-radius:10px;">`;
 
-  confirmYes.innerText="Radera";
-  confirmNo.innerText="Stäng";
+  confirmYes.innerText = "Radera";
+  confirmNo.innerText = "Stäng";
+
   confirmModal.classList.add("show");
 
-  confirmCallback=()=>{
-    delete products[key].image;
-    save();
+  // Viktigt: sätt en riktig callback
+  confirmCallback = () => {
+    showConfirm("Är du säker på att du vill ta bort bilden?", () => {
+      delete products[key].image;
+      save();
+      closeModal();
+    });
   };
+
+  // Återställ knapparnas beteende korrekt
+  confirmYes.onclick = () => {
+    if (confirmCallback) confirmCallback();
+  };
+
+  confirmNo.onclick = closeModal;
 }
 
 function showConfirm(text,callback){

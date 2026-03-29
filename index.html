@@ -298,6 +298,14 @@ body.dark td div {
 }
 .image-btn:hover { opacity: 0.7; }
 
+/*Filter*/
+.filter-active {
+border: 1px solid var(--neon);
+    box-shadow: 0 0 5px var(--neon), 0 0 10px var(--neon), 0 0 20px var(--neon), 0 0 30px rgba(255, 245, 0, 0.5);
+    transition: box-shadow 0.2s ease;
+
+}
+
 </style>
 </head>
 
@@ -329,7 +337,9 @@ body.dark td div {
   <button>+ Lägg till</button>
 </form>
 
+
 <input id="search" placeholder="🔍 Sök...">
+
 
 <table>
 <thead>
@@ -338,8 +348,8 @@ body.dark td div {
 <th>Artikel</th>
 <th>Antal</th>
 <th>Lagerplats</th>
-<th>Plockat</th>
-<th>Status</th>
+<th id="filterPickedHeader" style="cursor:pointer;">Plockat</th>
+<th id="filterStatusHeader" style="cursor:pointer;">Status</th>
 <th>Kommentar</th>
 <th>Åtgärder</th>
 </tr>
@@ -358,6 +368,10 @@ body.dark td div {
 </div>
 
 <script>
+
+let filterPickedActive = false;
+let filterOutOfStockActive = false;
+
 // FIREBASE
 const firebaseConfig = {
   apiKey:"AIzaSy...",
@@ -389,7 +403,7 @@ function showApp(){
   loadProducts();
 }
 
-if(localStorage.getItem("loggedIn")==="true") showApp();
+ if(localStorage.getItem("loggedIn")==="true") showApp(); //
 
 // UI
 function toggleTheme(){
@@ -477,6 +491,8 @@ function showModal(text){
 
 // RENDER
 function render(){
+const onlyPicked = filterPickedActive;
+const onlyOutOfStock = filterOutOfStockActive;
   const list=document.getElementById("productList");
   const search=document.getElementById("search").value.toLowerCase();
   list.innerHTML="";
@@ -484,10 +500,16 @@ function render(){
   sortedKeys().forEach(key=>{
     const p=products[key];
     if(!p.picked)p.picked=0;
+
     const status=p.quantity>0?"Tillgänglig":"Slut";
     if(!(p.name||"").toLowerCase().includes(search) &&
        !(p.article||"").toLowerCase().includes(search) &&
        !(p.location||"").toLowerCase().includes(search)) return;
+       // NYTT FILTER
+  // FILTER: endast plockade
+if(onlyPicked && (!p.picked || p.picked <= 0)) return;
+// FILTER: endast slut i lager
+if(onlyOutOfStock && p.quantity > 0) return;
     const editing = editingKey===key;
     const hasImage = p.image && p.image.trim()!=="";
 
@@ -688,6 +710,31 @@ document.getElementById("exportBtn").addEventListener("click", () => {
   URL.revokeObjectURL(url);
 });
 
+// Filter
+
+const pickedHeader = document.getElementById("filterPickedHeader");
+const statusHeader = document.getElementById("filterStatusHeader");
+
+if (pickedHeader) {
+  pickedHeader.addEventListener("click", () => {
+    filterPickedActive = !filterPickedActive;
+    updateFilterStyles();
+    render();
+  });
+}
+
+if (statusHeader) {
+  statusHeader.addEventListener("click", () => {
+    filterOutOfStockActive = !filterOutOfStockActive;
+    updateFilterStyles();
+    render();
+  });
+}
+
+function updateFilterStyles(){
+  pickedHeader.classList.toggle("filter-active", filterPickedActive);
+  statusHeader.classList.toggle("filter-active", filterOutOfStockActive);
+}
 document.getElementById("search").addEventListener("input",render);
 </script>
 </body>
